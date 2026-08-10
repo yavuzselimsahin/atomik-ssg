@@ -1,6 +1,7 @@
 #include "../include/build.h"
 #include "../include/parser.h"
 #include "../include/render.h"
+#include "../include/rss.h"
 #include "../toml.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -58,6 +59,25 @@ void cmd_build(void) {
         free(raw);
     }
     closedir(dir);
+
+    PostList post_list = {0};
+    DIR *dir2 = opendir("content/posts");
+    if (dir2) {
+        struct dirent *e;
+        while ((e = readdir(dir2)) != NULL && post_list.count < 128) {
+            char *ext = strrchr(e->d_name, '.');
+            if (!ext || strcmp(ext, ".md") != 0) continue;
+            char path2[512];
+            snprintf(path2, sizeof(path2), "content/posts/%s", e->d_name);
+            char *raw = read_file(path2);
+            if (!raw) continue;
+            if (parse_frontmatter(raw, &post_list.posts[post_list.count]) == 0)
+                post_list.count++;
+            free(raw);
+        }
+        closedir(dir2);
+    }
+    generate_rss(&post_list);
 
     char tmpl_path[600];
     snprintf(tmpl_path, sizeof(tmpl_path), "%s/templates/index.html", g_theme_path);

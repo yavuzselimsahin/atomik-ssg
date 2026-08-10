@@ -9,3 +9,7 @@ output_dir = "public"
 
 [server]
 port = 4545
+
+[deploy]
+host = "user@vps"
+path = "/var/www/myblog"

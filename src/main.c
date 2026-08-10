@@ -12,6 +12,7 @@
 #include "../include/build.h"
 #include "../include/serve.h"
 #include "../include/init.h"
+#include "../include/deploy.h"
 TomlDoc g_toml;
 char g_theme_path[512] = "themes/default";
 
@@ -31,6 +32,7 @@ void print_help(void) {
     printf("  atomik-ssg build         Generate site\n");
     printf("  atomik-ssg new <title>   Create a new post\n");
     printf("  atomik-ssg serve [port]  Start dev server (default: 4545)\n");
+    printf("  atomik-ssg deploy        Build and deploy to VPS or another machine\n");
     printf("  atomik-ssg help          Show this message\n\n");
     printf("Example:\n");
     printf("  atomik-ssg new \"My First Post\"\n");
@@ -103,6 +105,8 @@ int main(int argc, char *argv[]) {
         cmd_serve(port);
     } else if (strcmp(argv[1], "help") == 0)
         print_help();
+    else if (strcmp(argv[1], "new") == 0)
+        cmd_new(argc > 2 ? argv[2] : NULL);
     else {
         fprintf(stderr, "Unknown command: %s\n", argv[1]);
         fprintf(stderr, "Run atomik-ssg help for usage\n");

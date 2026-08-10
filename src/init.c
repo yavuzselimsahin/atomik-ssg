@@ -42,6 +42,8 @@ void cmd_init(void) {
     char url[256]    = {0};
     char theme_choice[32] = {0};
     char theme_name[32]   = {0};
+    char deploy_host[256] = {0};
+    char deploy_path[256] = {0};
 
     printf("\nWelcome to atomik-ssg!\n");
     printf("-----------------------------\n\n");
@@ -51,6 +53,10 @@ void cmd_init(void) {
     prompt("Description",    "",                 desc,   sizeof(desc));
     prompt("Author",         "",                 author, sizeof(author));
     prompt("Base URL",       "http://localhost", url,    sizeof(url));
+
+    printf("\nDeploy settings (optional, press Enter to skip):\n");
+    prompt("VPS host", "user@vps", deploy_host, sizeof(deploy_host));
+    prompt("Deploy path", "/var/www/myblog", deploy_path, sizeof(deploy_path));
 
     printf("\nAvailable themes:\n");
     printf("  1) default  (light, minimal)\n");
@@ -99,11 +105,14 @@ void cmd_init(void) {
             "base_url    = \"%s\"\n"
             "author      = \"%s\"\n"
             "theme       = \"%s\"\n\n"
+            "[deploy]\n"
+            "host = \"%s\"\n"
+            "path = \"%s\"\n"
             "[build]\n"
             "output_dir = \"public\"\n\n"
             "[server]\n"
             "port = 4545\n",
-            title, desc, url, author, theme_name);
+            title, desc, url, author, theme_name, deploy_host, deploy_path);
         fclose(f);
         printf("  created  %s/config.toml\n", name);
     }
