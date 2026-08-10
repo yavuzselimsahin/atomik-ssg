@@ -105,8 +105,8 @@ int main(int argc, char *argv[]) {
         cmd_serve(port);
     } else if (strcmp(argv[1], "help") == 0)
         print_help();
-    else if (strcmp(argv[1], "new") == 0)
-        cmd_new(argc > 2 ? argv[2] : NULL);
+    else if (strcmp(argv[1], "deploy") == 0)
+        cmd_deploy();
     else {
         fprintf(stderr, "Unknown command: %s\n", argv[1]);
         fprintf(stderr, "Run atomik-ssg help for usage\n");
