@@ -4,7 +4,7 @@ A lightweight static site generator written in C.
 
 ## Why atomik-ssg?
 
-Most static site generators are excellent tools with rich ecosystems — if you need themes, plugins, and extensive configuration, [Zola](https://www.getzola.org) or [Hugo](https://gohugo.io) are great choices.
+Most static site generators are excellent tools with rich ecosystems — if you need themes, plugins, and extensive configuration, you can check out [Zola](https://www.getzola.org) or [Hugo](https://gohugo.io).
 
 atomik-ssg is for those who want something smaller. A single binary, no runtime dependencies, no configuration overhead. Write Markdown, run build, get HTML.
 
