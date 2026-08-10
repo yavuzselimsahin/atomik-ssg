@@ -1,0 +1,11 @@
+title = "My Blog"
+description = "Systems programming and Linux"
+base_url = "https://example.com"
+author = "Your Name"
+theme = "deafult"
+
+[build]
+output_dir = "public"
+
+[server]
+port = 4545

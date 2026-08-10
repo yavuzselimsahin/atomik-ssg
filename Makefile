@@ -1,9 +1,12 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -02
+CFLAGS = -Wall -Wextra -02 -I./include
 LIBS = -lcmark -lws2_32
 
-atomik-ssg:	main.c toml.c
-	$(CC) $(FLAGS) -o atomik-ssg main.c toml.c $(LIBS)
+SRCS = src/main.c src/parser.c src/render.c src/build.c src/serve.c src/init.c toml.c
+OBJS = $(SRCS: .c=.o)
+
+atomik-ssg:	$(SRCS)
+	$(CC) $(FLAGS) -o atomik-ssg $(SRCS) $(LIBS)
 
 clean: 
 	rm -f atomik-ssg.exe
