@@ -65,6 +65,7 @@ atomik-ssg serve 8080
 
 ## Project Structure
 
+```
 my-blog/
 ├── config.toml
 ├── content/
@@ -75,6 +76,7 @@ my-blog/
 │   ├── dark/
 │   └── sepia/
 └── public/
+```
 
 ## Configuration
 
