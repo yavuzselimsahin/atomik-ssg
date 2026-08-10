@@ -1,0 +1,9 @@
+public/
+atomik-ssg.exe
+atomik-ssg
+*.o
+content/
+themes/
+static/
+templates/
+.bashrc
