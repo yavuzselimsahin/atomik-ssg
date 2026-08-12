@@ -17,8 +17,12 @@
 #include "../include/deploy.h"
 
 TomlDoc g_toml;
-char    g_theme_path[512] = "themes/default";
-char    g_output_dir[256] = "public";
+char    g_theme_path[512]              = "themes/default";
+char    g_output_dir[256]              = "public";
+char    g_site_title[MAX_FIELD]        = "Atomik SSG";
+char    g_site_description[MAX_FIELD]  = "";
+int     g_include_drafts               = 0;
+const char *g_nav_html                 = "";
 
 #define DEFAULT_PORT 4545
 
@@ -51,6 +55,23 @@ static void load_config(int quiet) {
         out = "public";
     }
     snprintf(g_output_dir, sizeof(g_output_dir), "%s", out);
+
+    snprintf(g_site_title, sizeof(g_site_title), "%s",
+             toml_get_or(&g_toml, "", "title", "Atomik SSG"));
+    snprintf(g_site_description, sizeof(g_site_description), "%s",
+             toml_get_or(&g_toml, "", "description", ""));
+}
+
+/* Removes flag from argv if present, so the positional arguments stay simple. */
+static int take_flag(int *argc, char *argv[], const char *flag) {
+    for (int i = 1; i < *argc; i++) {
+        if (strcmp(argv[i], flag) == 0) {
+            for (int j = i; j < *argc - 1; j++) argv[j] = argv[j + 1];
+            (*argc)--;
+            return 1;
+        }
+    }
+    return 0;
 }
 
 /* Returns the port, or -1 if the text is not a usable port number. */
@@ -76,21 +97,37 @@ static int configured_port(void) {
 void print_help(void) {
     printf("atomik-ssg - Lightweight static site generator\n\n");
     printf("Usage:\n");
-    printf("  atomik-ssg init          Create a new project\n");
-    printf("  atomik-ssg build         Generate site\n");
-    printf("  atomik-ssg new <title>   Create a new post\n");
-    printf("  atomik-ssg serve [port]  Start dev server (default: %d)\n", DEFAULT_PORT);
-    printf("  atomik-ssg deploy        Build and deploy to VPS or another machine\n");
-    printf("  atomik-ssg help          Show this message\n\n");
+    printf("  atomik-ssg init            Create a new project\n");
+    printf("  atomik-ssg build [--drafts]  Generate site\n");
+    printf("  atomik-ssg new <title>     Create a new post\n");
+    printf("  atomik-ssg serve [port]    Start dev server (default: %d)\n", DEFAULT_PORT);
+    printf("  atomik-ssg deploy [--drafts] Build and deploy to VPS or another machine\n");
+    printf("  atomik-ssg help            Show this message\n\n");
+    printf("Content:\n");
+    printf("  content/posts/*.md   dated posts, listed on the index and in the feed\n");
+    printf("  content/*.md         standalone pages, published at /<slug>/\n");
+    printf("  draft: true          keeps an entry out of the build\n\n");
     printf("Example:\n");
-    printf("  atomik-ssg new \"My First Post\"\n");
+    printf("  atomik-ssg new My First Post\n");
     printf("  atomik-ssg build\n");
     printf("  atomik-ssg serve\n");
 }
 
+/* Joins the remaining arguments so `new My First Post` works without quotes. */
+static char *join_args(int argc, char *argv[], int from) {
+    StrBuf sb;
+    sb_init(&sb);
+
+    for (int i = from; i < argc; i++) {
+        if (i > from && sb_append(&sb, " ") != 0) { sb_free(&sb); return NULL; }
+        if (sb_append(&sb, argv[i]) != 0)         { sb_free(&sb); return NULL; }
+    }
+    return sb.data;
+}
+
 int cmd_new(const char *title) {
     if (!title || !*title) {
-        fprintf(stderr, "Usage: atomik-ssg new \"Post Title\"\n");
+        fprintf(stderr, "Usage: atomik-ssg new <title>\n");
         return 1;
     }
 
@@ -131,6 +168,7 @@ int cmd_new(const char *title) {
         "date: %s\n"
         "slug: %s\n"
         "description: \n"
+        "draft: false\n"
         "---\n\n"
         "Write your content here...\n",
         title, date, slug);
@@ -142,6 +180,8 @@ int cmd_new(const char *title) {
 }
 
 int main(int argc, char *argv[]) {
+    int wants_drafts = take_flag(&argc, argv, "--drafts");
+
     if (argc < 2) {
         load_config(1);
         print_help();
@@ -150,6 +190,14 @@ int main(int argc, char *argv[]) {
 
     const char *cmd   = argv[1];
     int         quiet = strcmp(cmd, "init") == 0 || strcmp(cmd, "help") == 0;
+
+    int builds = strcmp(cmd, "build") == 0 || strcmp(cmd, "deploy") == 0;
+    if (wants_drafts && !builds) {
+        fprintf(stderr, "Error: --drafts only applies to build and deploy\n");
+        return 1;
+    }
+    g_include_drafts = wants_drafts;
+
     load_config(quiet);
 
     if (strcmp(cmd, "init") == 0) {
@@ -157,7 +205,12 @@ int main(int argc, char *argv[]) {
     } else if (strcmp(cmd, "build") == 0) {
         cmd_build();
     } else if (strcmp(cmd, "new") == 0) {
-        return cmd_new(argc > 2 ? argv[2] : NULL);
+        if (argc < 3) { fprintf(stderr, "Usage: atomik-ssg new <title>\n"); return 1; }
+        char *title = join_args(argc, argv, 2);
+        if (!title) { fprintf(stderr, "Error: out of memory\n"); return 1; }
+        int rc = cmd_new(title);
+        free(title);
+        return rc;
     } else if (strcmp(cmd, "serve") == 0) {
         int port = configured_port();
         if (argc > 2) {

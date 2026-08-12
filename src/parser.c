@@ -4,9 +4,22 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <limits.h>
 #include <dirent.h>
 
+#ifdef _WIN32
+    #define strcasecmp _stricmp
+#else
+    #include <strings.h>
+#endif
+
 #define COPY_MAX_DEPTH 32
+
+/* Accepts the spellings people actually write in frontmatter. */
+static int is_truthy(const char *v) {
+    return strcasecmp(v, "true") == 0 || strcasecmp(v, "yes") == 0 ||
+           strcasecmp(v, "on")   == 0 || strcmp(v, "1") == 0;
+}
 
 int parse_frontmatter(char *raw, Post *post) {
     if (!raw || strncmp(raw, "---", 3) != 0) return -1;
@@ -49,6 +62,8 @@ int parse_frontmatter(char *raw, Post *post) {
         else if (strcmp(key, "date") == 0)        snprintf(post->date,        MAX_FIELD, "%s", val);
         else if (strcmp(key, "slug") == 0)        snprintf(post->slug,        MAX_FIELD, "%s", val);
         else if (strcmp(key, "description") == 0) snprintf(post->description, MAX_FIELD, "%s", val);
+        else if (strcmp(key, "draft") == 0)       post->draft = is_truthy(val);
+        else if (strcmp(key, "order") == 0)       post->order = atoi(val);
     }
     return -1;   /* frontmatter never closed */
 }
@@ -200,6 +215,9 @@ int collect_posts(const char *dirpath, PostList *list) {
 
         Post p;
         memset(&p, 0, sizeof(p));
+        /* Unordered entries sort last, so writing `order: 1` promotes a page
+           instead of demoting it below everything that says nothing. */
+        p.order = INT_MAX;
         if (parse_frontmatter(raw, &p) != 0) {
             fprintf(stderr, "Warning: missing or unterminated frontmatter, skipping %s\n", path);
             free(raw);

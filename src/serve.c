@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <dirent.h>
 
 #ifdef _WIN32
     #define WIN32_LEAN_AND_MEAN
@@ -86,23 +87,27 @@ void send_response(int client, int status, const char *mime,
         send_all(client, body, body_len);
 }
 
-/* Percent-decodes in place into out. Rejects encoded NUL bytes. */
+/* Percent-decodes into out. Rejects NUL and control bytes: the decoded path is
+   echoed back in the Location header, and a raw CR/LF there would let a request
+   inject headers of its own. */
 static int url_decode(const char *in, char *out, size_t out_size) {
     size_t j = 0;
     for (size_t i = 0; in[i]; i++) {
         if (j + 1 >= out_size) return -1;
 
+        unsigned char c;
         if (in[i] == '%') {
             if (!isxdigit((unsigned char)in[i + 1]) || !isxdigit((unsigned char)in[i + 2]))
                 return -1;
             char hex[3] = { in[i + 1], in[i + 2], '\0' };
-            int  v      = (int)strtol(hex, NULL, 16);
-            if (v == 0) return -1;          /* %00 would truncate the path */
-            out[j++] = (char)v;
+            c = (unsigned char)strtol(hex, NULL, 16);
             i += 2;
         } else {
-            out[j++] = in[i];
+            c = (unsigned char)in[i];
         }
+
+        if (c < 0x20 || c == 0x7F) return -1;
+        out[j++] = (char)c;
     }
     out[j] = '\0';
     return 0;
@@ -125,9 +130,11 @@ static int path_is_safe(const char *p) {
     return 1;
 }
 
-/* Turns a raw request target into a path under root. Returns -1 if unsafe. */
+/* Turns a raw request target into a path under root. Returns -1 if unsafe.
+   clean receives the decoded URL path, which the redirect below echoes back. */
 static int resolve_path(const char *url, const char *root,
-                        char *out, size_t out_size) {
+                        char *out, size_t out_size,
+                        char *clean, size_t clean_size) {
     char trimmed[1024];
     snprintf(trimmed, sizeof(trimmed), "%s", url);
 
@@ -137,6 +144,7 @@ static int resolve_path(const char *url, const char *root,
     char decoded[1024];
     if (url_decode(trimmed, decoded, sizeof(decoded)) != 0) return -1;
     if (!path_is_safe(decoded)) return -1;
+    if (snprintf(clean, clean_size, "%s", decoded) >= (int)clean_size) return -1;
 
     size_t dlen = strlen(decoded);
     int    n;
@@ -146,6 +154,29 @@ static int resolve_path(const char *url, const char *root,
         n = snprintf(out, out_size, "%s%s", root, decoded);
 
     return (n < 0 || n >= (int)out_size) ? -1 : 0;
+}
+
+static int is_dir(const char *path) {
+    DIR *d = opendir(path);
+    if (!d) return 0;
+    closedir(d);
+    return 1;
+}
+
+/* "/about" names a directory, so the browser must be sent to "/about/".
+   Without the trailing slash any relative link inside the page would resolve
+   against the parent directory. */
+static void send_redirect(int client, const char *path) {
+    char header[1200];
+    int  n = snprintf(header, sizeof(header),
+        "HTTP/1.1 301 Moved Permanently\r\n"
+        "Location: %s/\r\n"
+        "Content-Length: 0\r\n"
+        "Connection: close\r\n"
+        "\r\n",
+        path);
+    if (n > 0 && n < (int)sizeof(header))
+        send_all(client, header, (size_t)n);
 }
 
 void cmd_serve(int port) {
@@ -224,11 +255,21 @@ void cmd_serve(int port) {
             continue;
         }
 
-        char file_path[1200];
-        if (resolve_path(url_path, g_output_dir, file_path, sizeof(file_path)) != 0) {
+        char file_path[1200], clean_path[1024];
+        if (resolve_path(url_path, g_output_dir, file_path, sizeof(file_path),
+                         clean_path, sizeof(clean_path)) != 0) {
             const char *msg = "<h1>403 - Forbidden</h1>";
             printf("%s %s -> 403\n", method, url_path);
             send_response(client, 403, "text/html; charset=utf-8", msg, strlen(msg));
+            closesocket(client);
+            continue;
+        }
+
+        /* fopen() happily opens a directory on macOS and Linux, which would
+           otherwise answer "/about" with an empty 200. */
+        if (is_dir(file_path)) {
+            printf("%s %s -> 301 %s/\n", method, url_path, clean_path);
+            send_redirect(client, clean_path);
             closesocket(client);
             continue;
         }

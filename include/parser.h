@@ -9,6 +9,8 @@ typedef struct {
     char  date[MAX_FIELD];
     char  slug[MAX_FIELD];
     char  description[MAX_FIELD];
+    int   draft;     /* frontmatter `draft: true` */
+    int   order;     /* frontmatter `order: N`, orders the page menu */
     char *content;   /* points into raw, never freed on its own */
     char *raw;       /* owned by the Post; released by postlist_free() */
 } Post;

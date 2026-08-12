@@ -25,7 +25,10 @@ atomik-ssg is for those who want something smaller. A single binary, no runtime 
 ## Features
 
 - Markdown to HTML via [cmark](https://github.com/commonmark/cmark), linked statically
-- Frontmatter support (title, date, slug, description)
+- Frontmatter support (title, date, slug, description, draft)
+- Posts and standalone pages, with an automatic page menu
+- Drafts, kept out of the build until you want them
+- Previous/next navigation between posts
 - Theme system (default, dark, sepia — or bring your own)
 - TOML configuration
 - Built-in development server
@@ -64,7 +67,8 @@ make test
 ## Usage
 
 ```bash
-# Create a new project
+# Create a new project — asks which starter pages you want
+# (about, projects, contact, uses, now) and scaffolds them
 atomik-ssg init
 
 # Create a new post
@@ -84,14 +88,42 @@ atomik-ssg serve 8080
 my-blog/
 ├── config.toml
 ├── content/
+│   ├── about.md                        → /about/
 │   └── posts/
-│       └── 2026-08-10-my-first-post.md
+│       └── 2026-08-10-my-first-post.md → /posts/my-first-post/
 ├── themes/
 │   ├── default/
 │   ├── dark/
 │   └── sepia/
 └── public/
 ```
+
+Markdown under `content/posts/` becomes a dated post: it is listed on the index
+and in the feed. Markdown directly under `content/` becomes a standalone page at
+`/<slug>/` — that is where an About or Projects page goes.
+
+Pages are linked automatically. The menu is derived from what is in `content/`,
+so adding a file is all it takes; there is no list to keep in sync. It is
+available to every template as `{{pages}}`.
+
+Menu entries are sorted alphabetically by title. Set `order:` on the ones whose
+position matters — those come first, in ascending order, and everything else
+follows alphabetically:
+
+```markdown
+---
+title: About
+order: 1
+---
+```
+
+Sorting transliterates before comparing, so `İletişim` lands between `About` and
+`Projects` rather than after both, and the result is the same on every machine.
+
+`atomik-ssg init` offers a set of starter pages and writes the ones you pick,
+numbering their `order:` in the sequence you listed them — so the menu comes out
+the way you asked for it. The About page is prefilled with the author name and
+site description you already typed; the rest are outlines to edit.
 
 ## Configuration
 
@@ -125,10 +157,40 @@ title: My First Post
 date: 2026-08-10
 slug: my-first-post
 description: A short description
+draft: false
 ---
 
 Content goes here.
 ```
+
+Every field is optional. A missing `slug` or `date` is taken from the file name
+(`2026-08-10-my-first-post.md`), and a missing `title` falls back to the slug.
+
+Set `draft: true` to keep an entry out of the build entirely — no page, no index
+entry, no feed item. Build with `--drafts` to preview them:
+
+```bash
+atomik-ssg build --drafts
+```
+
+## Template Variables
+
+| Variable | Available in | Notes |
+|---|---|---|
+| `{{title}}` `{{date}}` `{{description}}` `{{slug}}` | post, page | HTML-escaped |
+| `{{content}}` | post, page | rendered markdown |
+| `{{site_title}}` `{{site_description}}` | all | from `config.toml` |
+| `{{post_items}}` | index | the generated post list |
+| `{{pages}}` | all | the page menu, as `<li>` items |
+| `{{prev_url}}` `{{prev_title}}` | post | the older post, empty on the last one |
+| `{{next_url}}` `{{next_title}}` | post | the newer post, empty on the first one |
+
+Unknown placeholders are left in the output untouched. There are no conditionals:
+on the first and last post the navigation variables expand to nothing, and the
+bundled themes hide the empty links with `.post-nav a:empty { display: none; }`.
+
+Themes may provide `templates/page.html`; if they do not, pages fall back to
+`templates/post.html`.
 
 ## Who is this for?
 

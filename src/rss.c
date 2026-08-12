@@ -19,8 +19,8 @@ void generate_rss(const PostList *list, const char *outdir) {
     size_t blen = strlen(base);
     while (blen > 0 && base[blen - 1] == '/') base[--blen] = '\0';
 
-    char *title    = escape_html(toml_get_or(&g_toml, "", "title", "My Blog"));
-    char *desc     = escape_html(toml_get_or(&g_toml, "", "description", ""));
+    char *title    = escape_html(g_site_title);
+    char *desc     = escape_html(g_site_description);
     char *base_esc = escape_html(base);
 
     if (!title || !desc || !base_esc) {

@@ -69,7 +69,7 @@ EXPECT=$((TOTAL - 1))   # broken.md is rejected
 
 group "Index completeness"
 check "all $EXPECT posts listed"  "$(grep -c 'href="/posts/' public/index.html)" "$EXPECT"
-check "index is closed properly"  "$(grep -c '</ul>' public/index.html)" "1"
+check "index is closed properly"  "$(grep -c '<ul' public/index.html)" "$(grep -c '</ul>' public/index.html)"
 check "no truncated list item"    "$(grep -c '<li>' public/index.html)" "$(grep -c '</li>' public/index.html)"
 
 group "Ordering"
@@ -111,6 +111,65 @@ grep -q '<blockquote>'              "$M" && ok "blockquote"  || bad "blockquote"
 group "Bad input"
 echo "$BUILD_OUT" | grep -q 'broken.md' && ok "bad frontmatter reported" || bad "bad frontmatter silent"
 
+group "Drafts"
+post "draft.md" "Secret" "2031-01-01" "secret" "d"
+printf -- "---\ntitle: Secret\ndate: 2031-01-01\nslug: secret\ndescription: d\ndraft: true\n---\n\nbody\n" \
+    > content/posts/draft.md
+D_OUT=$("$BIN" build 2>&1)
+[ -e public/posts/secret ] && bad "draft was published" || ok "draft excluded from output"
+grep -q 'href="/posts/secret/"' public/index.html && bad "draft listed on index" || ok "draft absent from index"
+grep -q '/posts/secret/' public/rss.xml && bad "draft in feed" || ok "draft absent from feed"
+echo "$D_OUT" | grep -q '1 draft(s) skipped' && ok "draft count reported" || bad "draft skipped silently"
+"$BIN" build --drafts >/dev/null 2>&1
+[ -f public/posts/secret/index.html ] && ok "--drafts publishes it" || bad "--drafts had no effect"
+"$BIN" serve --drafts 2>&1 | grep -q 'only applies to build' && ok "--drafts rejected on serve" || bad "--drafts silently ignored on serve"
+rm -f content/posts/draft.md && "$BIN" build >/dev/null 2>&1
+
+group "Pages"
+printf -- "---\ntitle: Hakkımda\nslug: about\ndescription: d\n---\n\n# Merhaba\n\nsayfa içeriği\n" > content/about.md
+printf -- "---\ntitle: Gizli Sayfa\nslug: hidden\ndraft: true\n---\n\nx\n" > content/hidden.md
+P_OUT=$("$BIN" build 2>&1)
+[ -f public/about/index.html ] && ok "page published at /<slug>/" || bad "page not published"
+grep -q 'Merhaba' public/about/index.html && ok "page content rendered" || bad "page content missing"
+grep -q 'href="/posts/about/"' public/index.html && bad "page listed as a post" || ok "page absent from post index"
+grep -q '/about/' public/rss.xml && bad "page in feed" || ok "page absent from feed"
+[ -e public/hidden ] && bad "draft page published" || ok "draft page excluded"
+echo "$P_OUT" | grep -q 'page(s)' && ok "page count reported" || bad "page count missing"
+
+group "Page menu"
+printf -- "---\ntitle: Projelerim\nslug: projects\n---\n\nx\n" > content/projects.md
+printf -- "---\ntitle: İletişim\nslug: iletisim\n---\n\nx\n" > content/iletisim.md
+"$BIN" build >/dev/null 2>&1
+menu() { grep -o '<nav class="site-nav">.*</nav>' "$1" | grep -o 'href="/[a-z-]*/"' | tr '\n' ' '; }
+check "menu built from content/ with no config" "$(menu public/index.html)" 'href="/about/" href="/iletisim/" href="/projects/" '
+check "menu also on posts"  "$(menu public/posts/newest/index.html)" 'href="/about/" href="/iletisim/" href="/projects/" '
+check "menu also on pages"  "$(menu public/projects/index.html)"     'href="/about/" href="/iletisim/" href="/projects/" '
+# a non-ASCII title must not be exiled to the end of the menu
+check "Turkish title sorts alphabetically" "$(menu public/index.html | grep -o 'iletisim')" "iletisim"
+# order: promotes, it must not demote
+printf -- "---\ntitle: Projelerim\nslug: projects\norder: 1\n---\n\nx\n" > content/projects.md
+"$BIN" build >/dev/null 2>&1
+check "order: 1 moves a page to the front" "$(menu public/index.html)" 'href="/projects/" href="/about/" href="/iletisim/" '
+grep -q 'ul:empty' public/style.css && ok "empty menu hidden by CSS" || bad "no :empty rule for the menu"
+# drafts stay out of the menu
+printf -- "---\ntitle: Gizli\nslug: gizli\ndraft: true\n---\n\nx\n" > content/gizli.md
+"$BIN" build >/dev/null 2>&1
+grep -q '/gizli/' public/index.html && bad "draft page in menu" || ok "draft page absent from menu"
+rm -f content/gizli.md content/projects.md content/iletisim.md
+"$BIN" build >/dev/null 2>&1
+
+group "Prev/next navigation"
+N=public/posts/middle/index.html
+grep -q 'class="prev" href="/posts/[a-z0-9-]*/"' "$N" && ok "prev link present"  || bad "prev link missing"
+grep -q 'class="next" href="/posts/[a-z0-9-]*/"' "$N" && ok "next link present"  || bad "next link missing"
+# newest post has no newer neighbour, oldest has no older one
+grep -q 'class="next" href=""' public/posts/newest/index.html && ok "newest has empty next" || bad "newest has a next link"
+grep -q 'class="prev" href=""' public/posts/oldest/index.html && ok "oldest has empty prev" || bad "oldest has a prev link"
+grep -q 'a:empty' public/style.css && ok "empty nav links hidden by CSS" || bad "no :empty rule in theme CSS"
+# the neighbour of the newest post must be the second-newest
+grep -o 'class="prev" href="[^"]*"' public/posts/newest/index.html | grep -q 'esc\|middle\|bulk\|derived\|escaped' \
+    && ok "prev points at an older post" || bad "prev target wrong"
+
 group "Slug transliteration"
 "$BIN" new "Merhaba Dünya Işık Çöğüş" >/dev/null 2>&1
 ls content/posts/ | grep -q 'merhaba-dunya-isik-cogus' && ok "Turkish transliterated" || bad "Turkish mangled"
@@ -118,6 +177,9 @@ ls content/posts/ | grep -q 'merhaba-dunya-isik-cogus' && ok "Turkish transliter
 ls content/posts/ | grep -q -- '-unlu\.md' && ok "unicode-only title" || bad "unicode-only title"
 "$BIN" new "C: The Language!!" >/dev/null 2>&1
 ls content/posts/ | grep -q 'c-the-language' && ok "punctuation collapsed" || bad "punctuation"
+"$BIN" new Tirnaksiz Cok Kelimeli Baslik >/dev/null 2>&1
+ls content/posts/ | grep -q 'tirnaksiz-cok-kelimeli-baslik' && ok "unquoted multi-word title" || bad "multi-word title truncated"
+grep -q 'title: Tirnaksiz Cok Kelimeli Baslik' content/posts/*tirnaksiz*.md && ok "full title kept in frontmatter" || bad "title not joined"
 
 group "Config"
 printf 'title = "T"\ntheme = "dark"\n\n[build]\noutput_dir = "docs"\n\n[server]\nport = %s\n' "$PORT" > config.toml
@@ -143,6 +205,12 @@ check "query string served"        "$(req '/?v=1'                      | head -1
 check "root served"                "$(req '/'                          | head -1 | tr -d '\r')" "HTTP/1.1 200 OK"
 check "post page served"           "$(req '/posts/newest/'             | head -1 | tr -d '\r')" "HTTP/1.1 200 OK"
 check "missing file 404"           "$(req '/nope.html'                 | head -1 | tr -d '\r')" "HTTP/1.1 404 Not Found"
+# a directory must redirect, not answer with an empty 200
+check "post without trailing slash redirects" "$(req '/posts/newest' | head -1 | tr -d '\r')" "HTTP/1.1 301 Moved Permanently"
+check "redirect points at the slashed URL"    "$(req '/posts/newest' | grep -i '^location' | tr -d '\r')" "Location: /posts/newest/"
+check "page without trailing slash redirects" "$(req '/about'        | head -1 | tr -d '\r')" "HTTP/1.1 301 Moved Permanently"
+check "no empty 200 for a directory"          "$(req '/posts/newest' | grep -c 'Content-Type: application/octet-stream')" "0"
+check "CRLF injection in path rejected" "$(req '/about%0d%0aX-Injected:%20yes' | head -1 | tr -d '\r')" "HTTP/1.1 403 Forbidden"
 check "rss content-type"           "$(req '/rss.xml' | grep -i '^content-type' | tr -d '\r')"   "Content-Type: application/xml"
 check "bad method 405" "$(printf 'DELETE / HTTP/1.1\r\n\r\n' | nc localhost "$PORT" | head -1 | tr -d '\r')" "HTTP/1.1 405 Method Not Allowed"
 printf '\r\n\r\n'  | nc localhost "$PORT" >/dev/null 2>&1
@@ -164,6 +232,27 @@ check "out-of-range port rejected" "$("$BIN" serve 99999 2>&1 | head -1)" 'Error
 cd "$WORK"
 printf 'site\n\n\n\n\n\n\n\n'    | "$BIN" init 2>&1 | grep -q 'already exists'        && ok "existing dir refused" || bad "existing dir reused"
 printf '../evil\n\n\n\n\n\n\n\n' | "$BIN" init 2>&1 | grep -q 'not a valid project'   && ok "path-y project name refused" || bad "path-y name accepted"
+
+group "init scaffolding"
+cd "$WORK"
+printf 'scaf\nBasligim\nAciklamam\nYavuz Selim\nhttps://x.com\n\n\n1\nprojects,about\n' | "$BIN" init >/dev/null 2>&1
+[ -f scaf/content/projects.md ] && ok "picked page created"        || bad "picked page missing"
+[ -f scaf/content/about.md ]    && ok "second picked page created" || bad "second page missing"
+[ -f scaf/content/contact.md ]  && bad "unpicked page created"     || ok "unpicked page not created"
+# order follows the pick order, not the listing order
+check "first pick gets order 1"  "$(grep '^order:' scaf/content/projects.md)" "order: 1"
+check "second pick gets order 2" "$(grep '^order:' scaf/content/about.md)"    "order: 2"
+grep -q 'Hi, I am Yavuz Selim' scaf/content/about.md && ok "about prefilled with the author"      || bad "about not prefilled"
+grep -q 'Aciklamam'            scaf/content/about.md && ok "about prefilled with the description" || bad "description missing"
+# the sample post must be dated today, not whenever init was written
+check "sample post dated today" "$(grep '^date:' scaf/content/posts/*.md)" "date: $(date +%Y-%m-%d)"
+# names and numbers are both accepted, unknown entries are reported
+printf 'scaf2\n\n\n\n\n\n\n1\n2,nope,now\n' | "$BIN" init 2>&1 | grep -q 'ignoring unknown page "nope"' \
+    && ok "unknown page reported" || bad "unknown page silently dropped"
+[ -f scaf2/content/projects.md ] && [ -f scaf2/content/now.md ] && ok "numbers and names mix" || bad "mixed selection failed"
+# piped init must still apply defaults for the questions it never reaches
+printf 'scaf3\n' | "$BIN" init >/dev/null 2>&1
+[ -f scaf3/content/about.md ] && ok "EOF falls back to defaults" || bad "EOF left answers empty"
 
 group "Deploy safety"
 cd site

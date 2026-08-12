@@ -7,11 +7,73 @@
 #include <time.h>
 #include <dirent.h>
 
+#ifdef _WIN32
+    #define strcasecmp _stricmp
+#else
+    #include <strings.h>
+#endif
+
 #define MKPATH(sub)                                            \
     do {                                                       \
         snprintf(path, sizeof(path), "%s/%s", name, sub);      \
         if (make_dir(path) != 0) { perror(path); return; }     \
     } while (0)
+
+/* Post navigation, shared by all three themes. The :empty rule is what hides
+   the link on the first and last post — the template engine has no
+   conditionals, and for this it does not need any. */
+#define NAV_CSS \
+    ".site-nav ul { list-style: none; display: flex; flex-wrap: wrap;\n" \
+    "    gap: 1rem; margin-top: 0.8rem; padding: 0; }\n" \
+    ".site-nav ul:empty { display: none; }\n" \
+    ".site-nav a { color: var(--muted); text-decoration: none;\n" \
+    "    font-size: 0.85rem; }\n" \
+    ".site-nav a:hover { color: var(--accent); }\n" \
+    ".post-nav { display: flex; justify-content: space-between; gap: 1rem;\n" \
+    "    margin-top: 3rem; }\n" \
+    ".post-nav a { color: var(--accent); text-decoration: none;\n" \
+    "    font-size: 0.9rem; max-width: 45%%; }\n" \
+    ".post-nav a:empty { display: none; }\n" \
+    ".post-nav .prev::before { content: \"\\2190  \"; }\n" \
+    ".post-nav .next { margin-left: auto; text-align: right; }\n" \
+    ".post-nav .next::after { content: \"  \\2192\"; }\n"
+
+/* Starter pages offered by init. The order the user picks them in becomes the
+   `order:` field, so the menu comes out in the order they asked for. */
+static const struct {
+    const char *slug;
+    const char *title;
+    const char *summary;      /* shown in the picker */
+    const char *description;  /* frontmatter description */
+    const char *body;
+} PAGE_TEMPLATES[] = {
+    { "about", "About", "Who you are", "About me and this site",
+      "Write a few sentences about yourself here: what you work on, what this\n"
+      "site is for, and why someone might want to read it.\n" },
+
+    { "projects", "Projects", "What you have built", "Things I have built",
+      "## Project name\n\n"
+      "One sentence on what it does and why it exists.\n"
+      "[Source](https://github.com/you/project)\n\n"
+      "## Another project\n\n"
+      "Replace these with your own.\n" },
+
+    { "contact", "Contact", "How to reach you", "How to get in touch",
+      "- Email: <you@example.com>\n"
+      "- GitHub: <https://github.com/you>\n\n"
+      "Replace these with the ways you actually want to be reached.\n" },
+
+    { "uses", "Uses", "Your tools and setup", "The tools I use",
+      "## Editor\n\n## Terminal\n\n## Hardware\n\n"
+      "List what you actually reach for every day.\n" },
+
+    { "now", "Now", "What you are working on", "What I am doing at the moment",
+      "What you are focused on right now. The convention is to write it as if\n"
+      "answering a friend you have not seen in a year, and to update it when\n"
+      "that answer changes.\n" },
+};
+
+#define PAGE_COUNT ((int)(sizeof(PAGE_TEMPLATES) / sizeof(PAGE_TEMPLATES[0])))
 
 static void prompt(const char *question, const char *fallback,
                    char *out, int size) {
@@ -20,7 +82,13 @@ static void prompt(const char *question, const char *fallback,
     printf(": ");
     fflush(stdout);
 
-    if (!fgets(out, size, stdin)) { out[0] = '\0'; return; }
+    /* On EOF — a piped, non-interactive init — fall back rather than leaving
+       the answer empty, so the same defaults apply as when a user hits Enter. */
+    if (!fgets(out, size, stdin)) {
+        snprintf(out, (size_t)size, "%s", fallback ? fallback : "");
+        printf("\n");
+        return;
+    }
 
     char *nl = strchr(out, '\n');
     if (nl) *nl = '\0';
@@ -28,7 +96,74 @@ static void prompt(const char *question, const char *fallback,
     if (cr) *cr = '\0';
 
     if (out[0] == '\0' && fallback)
-        strncpy(out, fallback, size - 1);
+        snprintf(out, (size_t)size, "%s", fallback);
+}
+
+/* Accepts either the number or the name of a starter page. */
+static int page_index(const char *token) {
+    char *end;
+    long  n = strtol(token, &end, 10);
+    if (end != token && *end == '\0' && n >= 1 && n <= PAGE_COUNT)
+        return (int)(n - 1);
+
+    for (int i = 0; i < PAGE_COUNT; i++)
+        if (strcasecmp(token, PAGE_TEMPLATES[i].slug) == 0) return i;
+
+    return -1;
+}
+
+/* Fills picked[] with template indices in the order the user listed them,
+   ignoring duplicates. Returns how many were understood. */
+static int parse_page_choice(const char *input, int *picked) {
+    char buf[256];
+    snprintf(buf, sizeof(buf), "%s", input);
+
+    int count = 0;
+    for (char *tok = strtok(buf, " ,;"); tok && count < PAGE_COUNT;
+         tok = strtok(NULL, " ,;")) {
+
+        int idx = page_index(tok);
+        if (idx < 0) {
+            fprintf(stderr, "  (ignoring unknown page \"%s\")\n", tok);
+            continue;
+        }
+        int seen = 0;
+        for (int i = 0; i < count; i++)
+            if (picked[i] == idx) seen = 1;
+        if (!seen) picked[count++] = idx;
+    }
+    return count;
+}
+
+static void write_page(const char *project, int idx, int order,
+                       const char *author, const char *site_desc) {
+    char path[512];
+    snprintf(path, sizeof(path), "%s/content/%s.md",
+             project, PAGE_TEMPLATES[idx].slug);
+
+    FILE *f = fopen(path, "w");
+    if (!f) { perror(path); return; }
+
+    fprintf(f,
+        "---\n"
+        "title: %s\n"
+        "slug: %s\n"
+        "description: %s\n"
+        "order: %d\n"
+        "---\n\n",
+        PAGE_TEMPLATES[idx].title, PAGE_TEMPLATES[idx].slug,
+        PAGE_TEMPLATES[idx].description, order);
+
+    /* The About page is the one init can genuinely prefill, since it already
+       asked for the author and the site description. */
+    if (strcmp(PAGE_TEMPLATES[idx].slug, "about") == 0) {
+        if (author && author[0]) fprintf(f, "Hi, I am %s.\n\n", author);
+        if (site_desc && site_desc[0]) fprintf(f, "%s\n\n", site_desc);
+    }
+
+    fputs(PAGE_TEMPLATES[idx].body, f);
+    fclose(f);
+    printf("  created  %s/content/%s.md\n", project, PAGE_TEMPLATES[idx].slug);
 }
 
 void cmd_init(void) {
@@ -39,6 +174,7 @@ void cmd_init(void) {
     char url[256]    = {0};
     char theme_choice[32] = {0};
     char theme_name[32]   = {0};
+    char page_choice[256] = {0};
     char deploy_host[256] = {0};
     char deploy_path[256] = {0};
 
@@ -60,6 +196,12 @@ void cmd_init(void) {
     printf("  2) dark     (terminal feel)\n");
     printf("  3) sepia    (warm, book-like)\n\n");
     prompt("Theme", "1", theme_choice, sizeof(theme_choice));
+
+    printf("\nStarter pages (these become the site menu, in the order you list them):\n");
+    for (int i = 0; i < PAGE_COUNT; i++)
+        printf("  %d) %-9s %s\n", i + 1, PAGE_TEMPLATES[i].slug, PAGE_TEMPLATES[i].summary);
+    printf("\n");
+    prompt("Pages, comma separated", "about", page_choice, sizeof(page_choice));
 
     if (strcmp(theme_choice, "2") == 0)
         strncpy(theme_name, "dark", sizeof(theme_name) - 1);
@@ -144,6 +286,7 @@ void cmd_init(void) {
                 "    <header>\n"
                 "        <h1>{{title}}</h1>\n"
                 "        <p>{{description}}</p>\n"
+                "        <nav class=\"site-nav\"><ul>{{pages}}</ul></nav>\n"
                 "    </header>\n"
                 "    <main>\n"
                 "        <ul class=\"post-list\">\n"
@@ -172,6 +315,7 @@ void cmd_init(void) {
                 "<body>\n"
                 "    <header>\n"
                 "        <a href=\"/\">&larr; Home</a>\n"
+                "        <nav class=\"site-nav\"><ul>{{pages}}</ul></nav>\n"
                 "    </header>\n"
                 "    <main>\n"
                 "        <article>\n"
@@ -179,11 +323,45 @@ void cmd_init(void) {
                 "            <time>{{date}}</time>\n"
                 "            {{content}}\n"
                 "        </article>\n"
+                "        <nav class=\"post-nav\">\n"
+                "            <a class=\"prev\" href=\"{{prev_url}}\">{{prev_title}}</a>\n"
+                "            <a class=\"next\" href=\"{{next_url}}\">{{next_title}}</a>\n"
+                "        </nav>\n"
                 "    </main>\n"
                 "</body>\n"
                 "</html>\n");
             fclose(f);
             printf("  created  %s/themes/%s/templates/post.html\n", name, themes[t]);
+        }
+
+        snprintf(path, sizeof(path), "%s/themes/%s/templates/page.html", name, themes[t]);
+        f = fopen(path, "w");
+        if (f) {
+            fprintf(f,
+                "<!DOCTYPE html>\n"
+                "<html lang=\"en\">\n"
+                "<head>\n"
+                "    <meta charset=\"UTF-8\">\n"
+                "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
+                "    <title>{{title}}</title>\n"
+                "    <meta name=\"description\" content=\"{{description}}\">\n"
+                "    <link rel=\"stylesheet\" href=\"/style.css\">\n"
+                "</head>\n"
+                "<body>\n"
+                "    <header>\n"
+                "        <a href=\"/\">&larr; Home</a>\n"
+                "        <nav class=\"site-nav\"><ul>{{pages}}</ul></nav>\n"
+                "    </header>\n"
+                "    <main>\n"
+                "        <article>\n"
+                "            <h1>{{title}}</h1>\n"
+                "            {{content}}\n"
+                "        </article>\n"
+                "    </main>\n"
+                "</body>\n"
+                "</html>\n");
+            fclose(f);
+            printf("  created  %s/themes/%s/templates/page.html\n", name, themes[t]);
         }
     }
 
@@ -234,7 +412,8 @@ void cmd_init(void) {
             "p code { background: var(--code-bg); border: 1px solid var(--border);\n"
             "    padding: 0.15em 0.4em; border-radius: 3px; }\n"
             "blockquote { border-left: 3px solid var(--border);\n"
-            "    padding-left: 1rem; color: var(--muted); margin: 1.5rem 0; }\n");
+            "    padding-left: 1rem; color: var(--muted); margin: 1.5rem 0; }\n"
+            NAV_CSS);
         fclose(f);
         printf("  created  %s/themes/default/static/style.css\n", name);
     }
@@ -285,7 +464,8 @@ void cmd_init(void) {
             "p code { background: var(--code-bg); border: 1px solid var(--border);\n"
             "    padding: 0.15em 0.4em; border-radius: 3px; }\n"
             "blockquote { border-left: 3px solid var(--accent);\n"
-            "    padding-left: 1rem; color: var(--muted); margin: 1.5rem 0; }\n");
+            "    padding-left: 1rem; color: var(--muted); margin: 1.5rem 0; }\n"
+            NAV_CSS);
         fclose(f);
         printf("  created  %s/themes/dark/static/style.css\n", name);
     }
@@ -336,26 +516,42 @@ void cmd_init(void) {
             "p code { background: var(--code-bg); border: 1px solid var(--border);\n"
             "    padding: 0.15em 0.4em; border-radius: 3px; }\n"
             "blockquote { border-left: 3px solid var(--accent);\n"
-            "    padding-left: 1rem; color: var(--muted); margin: 1.5rem 0; font-style: italic; }\n");
+            "    padding-left: 1rem; color: var(--muted); margin: 1.5rem 0; font-style: italic; }\n"
+            NAV_CSS);
         fclose(f);
         printf("  created  %s/themes/sepia/static/style.css\n", name);
     }
 
-    /* Example post */
-    snprintf(path, sizeof(path), "%s/content/posts/2026-08-10-hello-world.md", name);
+    /* Example post, dated today rather than whenever this program was written */
+    time_t     now = time(NULL);
+    struct tm *tm  = localtime(&now);
+    char       today[16];
+    if (!tm || strftime(today, sizeof(today), "%Y-%m-%d", tm) == 0)
+        snprintf(today, sizeof(today), "1970-01-01");
+
+    snprintf(path, sizeof(path), "%s/content/posts/%s-hello-world.md", name, today);
     f = fopen(path, "w");
     if (f) {
         fprintf(f,
             "---\n"
             "title: Hello World\n"
-            "date: 2026-08-10\n"
+            "date: %s\n"
             "slug: hello-world\n"
             "description: My first post\n"
+            "draft: false\n"
             "---\n\n"
-            "Welcome to my blog. This is the first post.\n");
+            "Welcome to my blog. This is the first post.\n",
+            today);
         fclose(f);
-        printf("  created  %s/content/posts/2026-08-10-hello-world.md\n", name);
+        printf("  created  %s/content/posts/%s-hello-world.md\n", name, today);
     }
+
+    /* Starter pages. Markdown at the top of content/ is published at /<slug>/
+       and linked from the menu automatically. */
+    int picked[PAGE_COUNT];
+    int npicked = parse_page_choice(page_choice, picked);
+    for (int i = 0; i < npicked; i++)
+        write_page(name, picked[i], i + 1, author, desc);
 
     printf("\nDone! Next steps:\n\n");
     printf("  cd %s\n", name);

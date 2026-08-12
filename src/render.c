@@ -7,45 +7,33 @@
 #include <string.h>
 #include <cmark.h>
 
-char *render_template_ex(const char *tmpl, const Post *post,
-                         const char *html_content, const char *post_items) {
+#define MAX_VAR_NAME 32
+
+char *render_template(const char *tmpl, const TemplateVar *vars, int nvars) {
     StrBuf sb;
     sb_init(&sb);
 
-    if (!html_content) html_content = "";
     const char *src = tmpl;
-    int ok = 1;
+    int         ok  = 1;
 
     while (*src && ok) {
         if (src[0] == '{' && src[1] == '{') {
             const char *end = strstr(src + 2, "}}");
             if (end) {
                 size_t nlen = (size_t)(end - (src + 2));
-                char   name[64];
-
-                if (nlen < sizeof(name)) {
+                if (nlen > 0 && nlen < MAX_VAR_NAME) {
+                    char name[MAX_VAR_NAME];
                     memcpy(name, src + 2, nlen);
                     name[nlen] = '\0';
 
-                    const char *escaped = NULL;
-                    const char *verbatim = NULL;
-
-                    if      (strcmp(name, "title") == 0 ||
-                             strcmp(name, "site_title") == 0)       escaped = post->title;
-                    else if (strcmp(name, "description") == 0 ||
-                             strcmp(name, "site_description") == 0) escaped = post->description;
-                    else if (strcmp(name, "date") == 0)             escaped = post->date;
-                    else if (strcmp(name, "slug") == 0)             escaped = post->slug;
-                    else if (strcmp(name, "content") == 0)          verbatim = html_content;
-                    else if (strcmp(name, "post_items") == 0 && post_items) verbatim = post_items;
-
-                    if (escaped) {
-                        ok = sb_append_escaped(&sb, escaped) == 0;
-                        src = end + 2;
-                        continue;
+                    const TemplateVar *hit = NULL;
+                    for (int i = 0; i < nvars; i++) {
+                        if (strcmp(vars[i].name, name) == 0) { hit = &vars[i]; break; }
                     }
-                    if (verbatim) {
-                        ok = sb_append(&sb, verbatim) == 0;
+
+                    if (hit) {
+                        const char *v = hit->value ? hit->value : "";
+                        ok  = (hit->raw ? sb_append(&sb, v) : sb_append_escaped(&sb, v)) == 0;
                         src = end + 2;
                         continue;
                     }
@@ -56,36 +44,57 @@ char *render_template_ex(const char *tmpl, const Post *post,
         src++;
     }
 
-    if (!ok) { sb_free(&sb); fprintf(stderr, "Error: out of memory rendering template\n"); return NULL; }
+    if (!ok) {
+        sb_free(&sb);
+        fprintf(stderr, "Error: out of memory rendering template\n");
+        return NULL;
+    }
     if (!sb.data && sb_append_n(&sb, "", 0) != 0) return NULL;
     return sb.data;
 }
 
-char *render_template(const char *tmpl, const Post *post, const char *html_content) {
-    return render_template_ex(tmpl, post, html_content, NULL);
-}
-
-int render_post(const Post *post, const char *outdir) {
+int render_entry(const char *tmpl, const Post *post,
+                 const Post *prev, const Post *next,
+                 const char *outdir, const char *subdir) {
     const char *body = post->content ? post->content : "";
 
-    char *html_content = cmark_markdown_to_html(body, strlen(body), CMARK_OPT_DEFAULT);
-    if (!html_content) {
+    char *html = cmark_markdown_to_html(body, strlen(body), CMARK_OPT_DEFAULT);
+    if (!html) {
         fprintf(stderr, "Error: markdown conversion failed for %s\n", post->slug);
         return -1;
     }
 
-    char tmpl_path[640];
-    snprintf(tmpl_path, sizeof(tmpl_path), "%s/templates/post.html", g_theme_path);
-    char *tmpl = read_file(tmpl_path);
-    if (!tmpl) { free(html_content); return -1; }
+    /* Neighbour URLs are built here so templates stay free of path logic. */
+    char prev_url[MAX_FIELD + 32] = "";
+    char next_url[MAX_FIELD + 32] = "";
+    if (prev) snprintf(prev_url, sizeof(prev_url), "/%s%s%s/", subdir, *subdir ? "/" : "", prev->slug);
+    if (next) snprintf(next_url, sizeof(next_url), "/%s%s%s/", subdir, *subdir ? "/" : "", next->slug);
 
-    char *output = render_template(tmpl, post, html_content);
-    free(tmpl);
-    free(html_content);
+    const TemplateVar vars[] = {
+        { "title",             post->title,               0 },
+        { "date",              post->date,                0 },
+        { "description",       post->description,         0 },
+        { "slug",              post->slug,                0 },
+        { "site_title",        g_site_title,              0 },
+        { "site_description",  g_site_description,        0 },
+        { "content",           html,                      1 },
+        { "pages",             g_nav_html,                1 },
+        { "prev_url",          prev_url,                  0 },
+        { "prev_title",        prev ? prev->title : "",   0 },
+        { "next_url",          next_url,                  0 },
+        { "next_title",        next ? next->title : "",   0 },
+    };
+
+    char *output = render_template(tmpl, vars, (int)(sizeof(vars) / sizeof(vars[0])));
+    free(html);
     if (!output) return -1;
 
     char dir[1024];
-    if (snprintf(dir, sizeof(dir), "%s/posts/%s", outdir, post->slug) >= (int)sizeof(dir)) {
+    int  n = *subdir
+        ? snprintf(dir, sizeof(dir), "%s/%s/%s", outdir, subdir, post->slug)
+        : snprintf(dir, sizeof(dir), "%s/%s", outdir, post->slug);
+
+    if (n < 0 || n >= (int)sizeof(dir)) {
         fprintf(stderr, "Error: output path too long for %s\n", post->slug);
         free(output);
         return -1;
