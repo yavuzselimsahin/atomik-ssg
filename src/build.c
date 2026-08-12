@@ -2,115 +2,118 @@
 #include "../include/parser.h"
 #include "../include/render.h"
 #include "../include/rss.h"
-#include "../toml.h"
+#include "../include/util.h"
+#include "../include/globals.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <dirent.h>
 
-#ifdef _WIN32
-    #include <direct.h>
-    #define mkdir(path, mode) _mkdir(path)
-#else
-    #include <sys/stat.h>
-#endif
+static int append_item(StrBuf *items, const Post *p) {
+    char *title = escape_html(p->title);
+    char *date  = escape_html(p->date);
+    char *desc  = escape_html(p->description);
+    int   rc    = -1;
 
-extern TomlDoc g_toml;
-extern char g_theme_path[512];
+    if (title && date && desc) {
+        /* p->slug is already reduced to [a-z0-9-] by collect_posts. */
+        rc = sb_appendf(items,
+            "            <li>\n"
+            "                <time>%s</time>\n"
+            "                <a href=\"/posts/%s/\">%s</a>\n"
+            "                <p>%s</p>\n"
+            "            </li>\n",
+            date, p->slug, title, desc);
+    }
+
+    free(title);
+    free(date);
+    free(desc);
+    return rc;
+}
+
+static int write_index(const PostList *list, const char *items) {
+    char tmpl_path[640];
+    snprintf(tmpl_path, sizeof(tmpl_path), "%s/templates/index.html", g_theme_path);
+
+    char *tmpl = read_file(tmpl_path);
+    if (!tmpl) {
+        fprintf(stderr, "Error: index template not found: %s\n", tmpl_path);
+        return -1;
+    }
+    if (!strstr(tmpl, "{{post_items}}"))
+        fprintf(stderr, "Warning: %s has no {{post_items}} placeholder, "
+                        "the index will not list any posts\n", tmpl_path);
+
+    Post site;
+    memset(&site, 0, sizeof(site));
+    snprintf(site.title,       sizeof(site.title),       "%s",
+             toml_get_or(&g_toml, "", "title", "Atomik SSG"));
+    snprintf(site.description, sizeof(site.description), "%s",
+             toml_get_or(&g_toml, "", "description", ""));
+
+    char *output = render_template_ex(tmpl, &site, "", items);
+    free(tmpl);
+    if (!output) return -1;
+
+    char out_path[512];
+    snprintf(out_path, sizeof(out_path), "%s/index.html", g_output_dir);
+
+    FILE *f = fopen(out_path, "wb");
+    if (!f) { perror(out_path); free(output); return -1; }
+
+    int failed = fputs(output, f) == EOF;
+    if (fclose(f) != 0) failed = 1;
+    free(output);
+
+    if (failed) { fprintf(stderr, "Error: could not write %s\n", out_path); return -1; }
+
+    printf("Generated: %s (%d post(s) listed)\n", out_path, list->count);
+    return 0;
+}
 
 void cmd_build(void) {
-    DIR *dir = opendir("content/posts");
-    if (!dir) {
+    PostList list;
+    if (collect_posts("content/posts", &list) != 0) {
         fprintf(stderr, "Error: content/posts not found\n");
         fprintf(stderr, "Are you in a project directory? Run atomik-ssg init first.\n");
         return;
     }
 
-    mkdir("public", 0755);
-    mkdir("public/posts", 0755);
+    char posts_dir[512];
+    snprintf(posts_dir, sizeof(posts_dir), "%s/posts", g_output_dir);
+    if (make_dir(g_output_dir) != 0 || make_dir(posts_dir) != 0) {
+        perror(g_output_dir);
+        postlist_free(&list);
+        return;
+    }
 
-    char post_items[8192] = {0};
-    char item[1024];
+    StrBuf items;
+    sb_init(&items);
+
     int count = 0;
-
-    struct dirent *entry;
-    while ((entry = readdir(dir)) != NULL) {
-        char *ext = strrchr(entry->d_name, '.');
-        if (!ext || strcmp(ext, ".md") != 0) continue;
-
-        char path[512];
-        snprintf(path, sizeof(path), "content/posts/%s", entry->d_name);
-        if (render_post(path) == 0) count++;
-
-        char *raw = read_file(path);
-        if (!raw) continue;
-
-        Post post = {0};
-        if (parse_frontmatter(raw, &post) == 0) {
-            snprintf(item, sizeof(item),
-                "            <li>\n"
-                "                <time>%s</time>\n"
-                "                <a href=\"/posts/%s/\">%s</a>\n"
-                "                <p>%s</p>\n"
-                "            </li>\n",
-                post.date, post.slug, post.title, post.description);
-            strncat(post_items, item, sizeof(post_items) - strlen(post_items) - 1);
+    for (int i = 0; i < list.count; i++) {
+        const Post *p = &list.posts[i];
+        if (render_post(p, g_output_dir) != 0) continue;
+        if (append_item(&items, p) != 0) {
+            fprintf(stderr, "Error: out of memory building the index\n");
+            break;
         }
-        free(raw);
+        count++;
     }
-    closedir(dir);
 
-    PostList post_list = {0};
-    DIR *dir2 = opendir("content/posts");
-    if (dir2) {
-        struct dirent *e;
-        while ((e = readdir(dir2)) != NULL && post_list.count < 128) {
-            char *ext = strrchr(e->d_name, '.');
-            if (!ext || strcmp(ext, ".md") != 0) continue;
-            char path2[512];
-            snprintf(path2, sizeof(path2), "content/posts/%s", e->d_name);
-            char *raw = read_file(path2);
-            if (!raw) continue;
-            if (parse_frontmatter(raw, &post_list.posts[post_list.count]) == 0)
-                post_list.count++;
-            free(raw);
-        }
-        closedir(dir2);
-    }
-    generate_rss(&post_list);
+    generate_rss(&list, g_output_dir);
+    write_index(&list, items.data ? items.data : "");
+    sb_free(&items);
 
-    char tmpl_path[600];
-    snprintf(tmpl_path, sizeof(tmpl_path), "%s/templates/index.html", g_theme_path);
-    char *tmpl = read_file(tmpl_path);
-    if (!tmpl) { fprintf(stderr, "Error: index template not found\n"); return; }
-
-    Post site = {0};
-    strncpy(site.title, toml_get_or(&g_toml, "", "title", "Atomik SSG"), MAX_FIELD - 1);
-    strncpy(site.description, toml_get_or(&g_toml, "", "description", ""), MAX_FIELD - 1);
-
-    char *output = render_template(tmpl, &site, "");
-    char *pos = strstr(output, "{{post_items}}");
-    if (pos) {
-        size_t before    = pos - output;
-        size_t ilen      = strlen(post_items);
-        size_t after_off = before + 14;
-        size_t total     = before + ilen + strlen(output + after_off) + 1;
-        char *final      = malloc(total);
-        memcpy(final, output, before);
-        memcpy(final + before, post_items, ilen);
-        strcpy(final + before + ilen, output + after_off);
-
-        FILE *f = fopen("public/index.html", "wb");
-        if (f) { fputs(final, f); fclose(f); printf("Generated: public/index.html\n"); }
-        free(final);
-    }
-    free(output);
-    free(tmpl);
-
-    char static_src[600];
+    char static_src[640];
     snprintf(static_src, sizeof(static_src), "%s/static", g_theme_path);
-    copy_dir(static_src, "public");
-    copy_dir("static", "public");
+    copy_dir(static_src, g_output_dir);
+    copy_dir("static", g_output_dir);
 
-    printf("\nBuild complete: %d post(s) generated -> public/\n", count);
+    if (count != list.count)
+        fprintf(stderr, "Warning: %d of %d post(s) failed to render\n",
+                list.count - count, list.count);
+
+    printf("\nBuild complete: %d post(s) generated -> %s/\n", count, g_output_dir);
+    postlist_free(&list);
 }

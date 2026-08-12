@@ -2,7 +2,7 @@ title = "My Blog"
 description = "Systems programming and Linux"
 base_url = "https://example.com"
 author = "Your Name"
-theme = "deafult"
+theme = "default"
 
 [build]
 output_dir = "public"

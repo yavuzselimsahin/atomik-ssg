@@ -1,9 +1,11 @@
 public/
+docs/
 atomik-ssg.exe
 atomik-ssg
 *.o
-content/
-themes/
-static/
-templates/
+*.d
+/content/
+/themes/
+/static/
+/templates/
 .bashrc

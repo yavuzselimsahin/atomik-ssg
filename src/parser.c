@@ -1,19 +1,16 @@
 #include "../include/parser.h"
+#include "../include/util.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <dirent.h>
 
-#ifdef _WIN32
-    #include <direct.h>
-    #define mkdir(path, mode) _mkdir(path)
-#else
-    #include <sys/stat.h>
-#endif
+#define COPY_MAX_DEPTH 32
 
-int parse_frontmatter(const char *raw, Post *post) {
-    if (strncmp(raw, "---", 3) != 0) return -1;
-    const char *ptr = raw + 3;
+int parse_frontmatter(char *raw, Post *post) {
+    if (!raw || strncmp(raw, "---", 3) != 0) return -1;
+    char *ptr = raw + 3;
     while (*ptr == '\r' || *ptr == '\n') ptr++;
 
     char line[MAX_LINE];
@@ -22,48 +19,64 @@ int parse_frontmatter(const char *raw, Post *post) {
         while (*ptr && *ptr != '\n' && i < MAX_LINE - 1)
             line[i++] = *ptr++;
         line[i] = '\0';
+        while (*ptr && *ptr != '\n') ptr++;   /* drop an over-long line's tail */
         if (*ptr == '\n') ptr++;
 
-        int llen = strlen(line);
-        if (llen > 0 && line[llen-1] == '\r') line[llen-1] = '\0';
+        size_t llen = strlen(line);
+        if (llen > 0 && line[llen - 1] == '\r') line[llen - 1] = '\0';
 
         if (strncmp(line, "---", 3) == 0) {
             while (*ptr == '\r' || *ptr == '\n') ptr++;
-            post->content = (char *)ptr;
+            post->content = ptr;
             return 0;
         }
 
         char *colon = strchr(line, ':');
         if (!colon) continue;
         *colon = '\0';
+
         char *key = line;
         char *val = colon + 1;
-        while (*val == ' ') val++;
+        while (*val == ' ' || *val == '\t') val++;
 
         char *cr = strchr(val, '\r');
         if (cr) *cr = '\0';
 
-        if (strcmp(key, "title") == 0)
-            strncpy(post->title, val, MAX_FIELD - 1);
-        else if (strcmp(key, "date") == 0)
-            strncpy(post->date, val, MAX_FIELD - 1);
-        else if (strcmp(key, "slug") == 0)
-            strncpy(post->slug, val, MAX_FIELD - 1);
-        else if (strcmp(key, "description") == 0)
-            strncpy(post->description, val, MAX_FIELD - 1);
+        size_t vlen = strlen(val);
+        while (vlen > 0 && (val[vlen - 1] == ' ' || val[vlen - 1] == '\t')) val[--vlen] = '\0';
+
+        if      (strcmp(key, "title") == 0)       snprintf(post->title,       MAX_FIELD, "%s", val);
+        else if (strcmp(key, "date") == 0)        snprintf(post->date,        MAX_FIELD, "%s", val);
+        else if (strcmp(key, "slug") == 0)        snprintf(post->slug,        MAX_FIELD, "%s", val);
+        else if (strcmp(key, "description") == 0) snprintf(post->description, MAX_FIELD, "%s", val);
     }
-    return -1;
+    return -1;   /* frontmatter never closed */
 }
 
 char *read_file(const char *path) {
     FILE *f = fopen(path, "rb");
     if (!f) { perror(path); return NULL; }
-    fseek(f, 0, SEEK_END);
+
+    if (fseek(f, 0, SEEK_END) != 0) { perror(path); fclose(f); return NULL; }
     long size = ftell(f);
+    if (size < 0) { perror(path); fclose(f); return NULL; }
     rewind(f);
-    char *buf = malloc(size + 1);
-    fread(buf, 1, size, f);
-    buf[size] = '\0';
+
+    char *buf = malloc((size_t)size + 1);
+    if (!buf) {
+        fprintf(stderr, "Error: out of memory reading %s\n", path);
+        fclose(f);
+        return NULL;
+    }
+
+    size_t got = fread(buf, 1, (size_t)size, f);
+    if (ferror(f)) {
+        fprintf(stderr, "Error: read failed on %s\n", path);
+        free(buf);
+        fclose(f);
+        return NULL;
+    }
+    buf[got] = '\0';
     fclose(f);
     return buf;
 }
@@ -73,27 +86,168 @@ void copy_file(const char *src, const char *dst) {
     if (!in) { fprintf(stderr, "Warning: cannot open %s\n", src); return; }
     FILE *out = fopen(dst, "wb");
     if (!out) { fclose(in); fprintf(stderr, "Warning: cannot write %s\n", dst); return; }
+
     char buf[8192];
     size_t n;
-    while ((n = fread(buf, 1, sizeof(buf), in)) > 0)
-        fwrite(buf, 1, n, out);
+    while ((n = fread(buf, 1, sizeof(buf), in)) > 0) {
+        if (fwrite(buf, 1, n, out) != n) {
+            fprintf(stderr, "Warning: short write on %s\n", dst);
+            break;
+        }
+    }
     fclose(in);
     fclose(out);
 }
 
-void copy_dir(const char *src, const char *dst) {
+static void copy_dir_depth(const char *src, const char *dst, int depth) {
+    if (depth > COPY_MAX_DEPTH) {
+        fprintf(stderr, "Warning: directory nesting too deep, skipping %s\n", src);
+        return;
+    }
+
     DIR *d = opendir(src);
     if (!d) return;
-    mkdir(dst, 0755);
+    make_dir(dst);
+
     struct dirent *entry;
     while ((entry = readdir(d)) != NULL) {
         if (entry->d_name[0] == '.') continue;
-        char src_path[512], dst_path[512];
-        snprintf(src_path, sizeof(src_path), "%s/%s", src, entry->d_name);
-        snprintf(dst_path, sizeof(dst_path), "%s/%s", dst, entry->d_name);
+
+        char src_path[1024], dst_path[1024];
+        if (snprintf(src_path, sizeof(src_path), "%s/%s", src, entry->d_name) >= (int)sizeof(src_path) ||
+            snprintf(dst_path, sizeof(dst_path), "%s/%s", dst, entry->d_name) >= (int)sizeof(dst_path)) {
+            fprintf(stderr, "Warning: path too long, skipping %s/%s\n", src, entry->d_name);
+            continue;
+        }
+
         DIR *sub = opendir(src_path);
-        if (sub) { closedir(sub); copy_dir(src_path, dst_path); }
-        else copy_file(src_path, dst_path);
+        if (sub) { closedir(sub); copy_dir_depth(src_path, dst_path, depth + 1); }
+        else       copy_file(src_path, dst_path);
     }
     closedir(d);
+}
+
+void copy_dir(const char *src, const char *dst) {
+    copy_dir_depth(src, dst, 0);
+}
+
+/* ------------------------------------------------------------------ */
+
+/* True when name starts with a "YYYY-MM-DD-" prefix. */
+static int has_date_prefix(const char *name) {
+    if (strlen(name) < 11) return 0;
+    for (int i = 0; i < 10; i++) {
+        if (i == 4 || i == 7) { if (name[i] != '-') return 0; }
+        else if (!isdigit((unsigned char)name[i])) return 0;
+    }
+    return name[10] == '-';
+}
+
+static void slug_from_filename(const char *fname, char *out, size_t out_size) {
+    char base[512];
+    snprintf(base, sizeof(base), "%s", fname);
+
+    char *dot = strrchr(base, '.');
+    if (dot) *dot = '\0';
+
+    const char *p = has_date_prefix(base) ? base + 11 : base;
+    slugify(p, out, out_size);
+    if (out[0] == '\0') slugify(base, out, out_size);
+}
+
+static int post_cmp(const void *a, const void *b) {
+    const Post *pa = (const Post *)a;
+    const Post *pb = (const Post *)b;
+
+    int c = strcmp(pb->date, pa->date);   /* ISO dates sort lexicographically */
+    if (c != 0) return c;
+    return strcmp(pa->slug, pb->slug);    /* stable tie-break */
+}
+
+static int postlist_push(PostList *list, const Post *p) {
+    if (list->count == list->cap) {
+        int   ncap = list->cap ? list->cap * 2 : 16;
+        Post *np   = realloc(list->posts, (size_t)ncap * sizeof(Post));
+        if (!np) return -1;
+        list->posts = np;
+        list->cap   = ncap;
+    }
+    list->posts[list->count++] = *p;
+    return 0;
+}
+
+int collect_posts(const char *dirpath, PostList *list) {
+    list->posts = NULL;
+    list->count = 0;
+    list->cap   = 0;
+
+    DIR *d = opendir(dirpath);
+    if (!d) return -1;
+
+    struct dirent *e;
+    while ((e = readdir(d)) != NULL) {
+        const char *ext = strrchr(e->d_name, '.');
+        if (!ext || strcmp(ext, ".md") != 0) continue;
+
+        char path[1024];
+        if (snprintf(path, sizeof(path), "%s/%s", dirpath, e->d_name) >= (int)sizeof(path)) {
+            fprintf(stderr, "Warning: path too long, skipping %s\n", e->d_name);
+            continue;
+        }
+
+        char *raw = read_file(path);
+        if (!raw) continue;
+
+        Post p;
+        memset(&p, 0, sizeof(p));
+        if (parse_frontmatter(raw, &p) != 0) {
+            fprintf(stderr, "Warning: missing or unterminated frontmatter, skipping %s\n", path);
+            free(raw);
+            continue;
+        }
+        p.raw = raw;
+
+        /* Always normalise the slug: it becomes a directory name, so it must
+           not be able to contain '/', '..' or anything else path-significant. */
+        if (p.slug[0] != '\0') {
+            char norm[MAX_FIELD];
+            slugify(p.slug, norm, sizeof(norm));
+            snprintf(p.slug, sizeof(p.slug), "%s", norm);
+        }
+        if (p.slug[0] == '\0')
+            slug_from_filename(e->d_name, p.slug, sizeof(p.slug));
+
+        if (p.slug[0] == '\0') {
+            fprintf(stderr, "Warning: cannot derive a slug, skipping %s\n", path);
+            free(raw);
+            continue;
+        }
+
+        if (p.date[0] == '\0' && has_date_prefix(e->d_name))
+            snprintf(p.date, sizeof(p.date), "%.10s", e->d_name);
+
+        if (p.title[0] == '\0')
+            snprintf(p.title, sizeof(p.title), "%s", p.slug);
+
+        if (postlist_push(list, &p) != 0) {
+            fprintf(stderr, "Error: out of memory collecting posts\n");
+            free(raw);
+            break;
+        }
+    }
+    closedir(d);
+
+    if (list->count > 1)
+        qsort(list->posts, (size_t)list->count, sizeof(Post), post_cmp);
+
+    return 0;
+}
+
+void postlist_free(PostList *list) {
+    for (int i = 0; i < list->count; i++)
+        free(list->posts[i].raw);
+    free(list->posts);
+    list->posts = NULL;
+    list->count = 0;
+    list->cap   = 0;
 }

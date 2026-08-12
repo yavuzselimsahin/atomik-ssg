@@ -1,20 +1,17 @@
 #include "../include/init.h"
 #include "../include/parser.h"
+#include "../include/util.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <dirent.h>
 
-#ifdef _WIN32
-    #include <direct.h>
-    #define mkdir(path, mode) _mkdir(path)
-#else
-    #include <sys/stat.h>
-#endif
-
-#define MKPATH(sub) \
-    snprintf(path, sizeof(path), "%s/%s", name, sub); \
-    mkdir(path, 0755);
+#define MKPATH(sub)                                            \
+    do {                                                       \
+        snprintf(path, sizeof(path), "%s/%s", name, sub);      \
+        if (make_dir(path) != 0) { perror(path); return; }     \
+    } while (0)
 
 static void prompt(const char *question, const char *fallback,
                    char *out, int size) {
@@ -73,10 +70,20 @@ void cmd_init(void) {
 
     printf("\n");
 
-    if (mkdir(name, 0755) != 0) {
+    if (name[0] == '\0' || strchr(name, '/') || strchr(name, '\\') ||
+        strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
+        fprintf(stderr, "Error: '%s' is not a valid project name\n", name);
+        return;
+    }
+
+    /* make_dir() tolerates an existing directory; init must not reuse one. */
+    DIR *existing = opendir(name);
+    if (existing) {
+        closedir(existing);
         fprintf(stderr, "Error: directory '%s' already exists\n", name);
         return;
     }
+    if (make_dir(name) != 0) { perror(name); return; }
 
     char path[512];
     MKPATH("themes");
@@ -107,7 +114,7 @@ void cmd_init(void) {
             "theme       = \"%s\"\n\n"
             "[deploy]\n"
             "host = \"%s\"\n"
-            "path = \"%s\"\n"
+            "path = \"%s\"\n\n"
             "[build]\n"
             "output_dir = \"public\"\n\n"
             "[server]\n"

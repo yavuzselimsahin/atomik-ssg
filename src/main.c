@@ -9,20 +9,68 @@
 #include <string.h>
 #include "../toml.h"
 #include "../include/parser.h"
+#include "../include/util.h"
+#include "../include/globals.h"
 #include "../include/build.h"
 #include "../include/serve.h"
 #include "../include/init.h"
 #include "../include/deploy.h"
-TomlDoc g_toml;
-char g_theme_path[512] = "themes/default";
 
-void load_config(void) {
+TomlDoc g_toml;
+char    g_theme_path[512] = "themes/default";
+char    g_output_dir[256] = "public";
+
+#define DEFAULT_PORT 4545
+
+/* A config value that becomes part of a path must not contain separators. */
+static int is_plain_name(const char *s) {
+    if (!s || !*s) return 0;
+    if (strcmp(s, ".") == 0 || strcmp(s, "..") == 0) return 0;
+    for (; *s; s++)
+        if (*s == '/' || *s == '\\') return 0;
+    return 1;
+}
+
+static void load_config(int quiet) {
     if (toml_parse("config.toml", &g_toml) != 0) {
-        fprintf(stderr, "Warning: config.toml not found, using defaults\n");
+        if (!quiet)
+            fprintf(stderr, "Warning: config.toml not found, using defaults\n");
         return;
     }
+
     const char *theme = toml_get_or(&g_toml, "", "theme", "default");
+    if (!is_plain_name(theme)) {
+        fprintf(stderr, "Warning: invalid theme name \"%s\", using default\n", theme);
+        theme = "default";
+    }
     snprintf(g_theme_path, sizeof(g_theme_path), "themes/%s", theme);
+
+    const char *out = toml_get_or(&g_toml, "build", "output_dir", "public");
+    if (!is_plain_name(out)) {
+        fprintf(stderr, "Warning: invalid output_dir \"%s\", using public\n", out);
+        out = "public";
+    }
+    snprintf(g_output_dir, sizeof(g_output_dir), "%s", out);
+}
+
+/* Returns the port, or -1 if the text is not a usable port number. */
+static int parse_port(const char *s) {
+    char *end;
+    long  v = strtol(s, &end, 10);
+    if (end == s || *end != '\0' || v < 1 || v > 65535) return -1;
+    return (int)v;
+}
+
+static int configured_port(void) {
+    const char *s = toml_get(&g_toml, "server", "port");
+    if (!s) return DEFAULT_PORT;
+
+    int p = parse_port(s);
+    if (p < 0) {
+        fprintf(stderr, "Warning: invalid [server] port \"%s\", using %d\n", s, DEFAULT_PORT);
+        return DEFAULT_PORT;
+    }
+    return p;
 }
 
 void print_help(void) {
@@ -31,7 +79,7 @@ void print_help(void) {
     printf("  atomik-ssg init          Create a new project\n");
     printf("  atomik-ssg build         Generate site\n");
     printf("  atomik-ssg new <title>   Create a new post\n");
-    printf("  atomik-ssg serve [port]  Start dev server (default: 4545)\n");
+    printf("  atomik-ssg serve [port]  Start dev server (default: %d)\n", DEFAULT_PORT);
     printf("  atomik-ssg deploy        Build and deploy to VPS or another machine\n");
     printf("  atomik-ssg help          Show this message\n\n");
     printf("Example:\n");
@@ -40,42 +88,43 @@ void print_help(void) {
     printf("  atomik-ssg serve\n");
 }
 
-void cmd_new(const char *title) {
-    if (!title) {
+int cmd_new(const char *title) {
+    if (!title || !*title) {
         fprintf(stderr, "Usage: atomik-ssg new \"Post Title\"\n");
-        return;
+        return 1;
     }
 
-    char slug[256] = {0};
-    int j = 0;
-    for (int i = 0; title[i] && j < 254; i++) {
-        unsigned char c = (unsigned char)title[i];
-        if (c >= 'A' && c <= 'Z') { slug[j++] = c + 32; continue; }
-        if (c == ' ' || c == '_') { slug[j++] = '-'; continue; }
-        if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-')
-            slug[j++] = c;
+    char slug[MAX_FIELD];
+    slugify(title, slug, sizeof(slug));
+    if (slug[0] == '\0') {
+        fprintf(stderr, "Error: could not build a slug from \"%s\"\n", title);
+        return 1;
     }
-    slug[j] = '\0';
 
-    char *slug_start = slug;
-    while (*slug_start == '-') slug_start++;
-    int slen = strlen(slug_start);
-    while (slen > 0 && slug_start[slen-1] == '-') slen--;
-    slug_start[slen] = '\0';
-
-    time_t t = time(NULL);
+    time_t     t  = time(NULL);
     struct tm *tm = localtime(&t);
-    char date[32];
-    strftime(date, sizeof(date), "%Y-%m-%d", tm);
+    char       date[32];
+    if (!tm || strftime(date, sizeof(date), "%Y-%m-%d", tm) == 0) {
+        fprintf(stderr, "Error: could not determine today's date\n");
+        return 1;
+    }
 
     char path[512];
-    snprintf(path, sizeof(path), "content/posts/%s-%s.md", date, slug_start);
+    if (snprintf(path, sizeof(path), "content/posts/%s-%s.md", date, slug) >= (int)sizeof(path)) {
+        fprintf(stderr, "Error: title too long\n");
+        return 1;
+    }
 
     FILE *check = fopen(path, "r");
-    if (check) { fclose(check); fprintf(stderr, "Error: %s already exists\n", path); return; }
+    if (check) {
+        fclose(check);
+        fprintf(stderr, "Error: %s already exists\n", path);
+        return 1;
+    }
 
     FILE *f = fopen(path, "w");
-    if (!f) { perror(path); return; }
+    if (!f) { perror(path); return 1; }
+
     fprintf(f,
         "---\n"
         "title: %s\n"
@@ -84,31 +133,49 @@ void cmd_new(const char *title) {
         "description: \n"
         "---\n\n"
         "Write your content here...\n",
-        title, date, slug_start);
-    fclose(f);
+        title, date, slug);
+
+    if (fclose(f) != 0) { fprintf(stderr, "Error: could not write %s\n", path); return 1; }
+
     printf("Created: %s\n", path);
+    return 0;
 }
 
 int main(int argc, char *argv[]) {
-    load_config();
-
-    if (argc < 2) { print_help(); return 0; }
-
-    if (strcmp(argv[1], "init") == 0)
-        cmd_init();
-    else if (strcmp(argv[1], "build") == 0)
-        cmd_build();
-    else if (strcmp(argv[1], "new") == 0)
-        cmd_new(argc > 2 ? argv[2] : NULL);
-    else if (strcmp(argv[1], "serve") == 0) {
-        int port = argc > 2 ? atoi(argv[2]) : 4545;
-        cmd_serve(port);
-    } else if (strcmp(argv[1], "help") == 0)
+    if (argc < 2) {
+        load_config(1);
         print_help();
-    else if (strcmp(argv[1], "deploy") == 0)
-        cmd_deploy();
-    else {
-        fprintf(stderr, "Unknown command: %s\n", argv[1]);
+        return 0;
+    }
+
+    const char *cmd   = argv[1];
+    int         quiet = strcmp(cmd, "init") == 0 || strcmp(cmd, "help") == 0;
+    load_config(quiet);
+
+    if (strcmp(cmd, "init") == 0) {
+        cmd_init();
+    } else if (strcmp(cmd, "build") == 0) {
+        cmd_build();
+    } else if (strcmp(cmd, "new") == 0) {
+        return cmd_new(argc > 2 ? argv[2] : NULL);
+    } else if (strcmp(cmd, "serve") == 0) {
+        int port = configured_port();
+        if (argc > 2) {
+            port = parse_port(argv[2]);
+            if (port < 0) {
+                fprintf(stderr, "Error: invalid port \"%s\" (expected 1-65535)\n", argv[2]);
+                return 1;
+            }
+        }
+        cmd_serve(port);
+    } else if (strcmp(cmd, "help") == 0 ||
+               strcmp(cmd, "--help") == 0 ||
+               strcmp(cmd, "-h") == 0) {
+        print_help();
+    } else if (strcmp(cmd, "deploy") == 0) {
+        return cmd_deploy();
+    } else {
+        fprintf(stderr, "Unknown command: %s\n", cmd);
         fprintf(stderr, "Run atomik-ssg help for usage\n");
         return 1;
     }
