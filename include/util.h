@@ -35,4 +35,7 @@ char *shell_quote(const char *s);
 /* mkdir() that succeeds if the directory already exists. */
 int make_dir(const char *path);
 
+/* Creates every missing component of path, like `mkdir -p`. */
+int make_dir_p(const char *path);
+
 #endif

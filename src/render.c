@@ -58,7 +58,12 @@ int render_entry(const char *tmpl, const Post *post,
                  const char *outdir, const char *subdir) {
     const char *body = post->content ? post->content : "";
 
-    char *html = cmark_markdown_to_html(body, strlen(body), CMARK_OPT_DEFAULT);
+    /* CMARK_OPT_UNSAFE lets raw HTML through. cmark suppresses it by default
+       to guard against markdown submitted by strangers; here the markdown is
+       the site author's own, and stripping their <iframe> or <table> would be
+       the surprising behaviour. Every general-purpose generator does this. */
+    char *html = cmark_markdown_to_html(body, strlen(body),
+                                        CMARK_OPT_DEFAULT | CMARK_OPT_UNSAFE);
     if (!html) {
         fprintf(stderr, "Error: markdown conversion failed for %s\n", post->slug);
         return -1;
@@ -70,6 +75,12 @@ int render_entry(const char *tmpl, const Post *post,
     if (prev) snprintf(prev_url, sizeof(prev_url), "/%s%s%s/", subdir, *subdir ? "/" : "", prev->slug);
     if (next) snprintf(next_url, sizeof(next_url), "/%s%s%s/", subdir, *subdir ? "/" : "", next->slug);
 
+    /* Empty unless config.toml sets edit_url, so a theme can carry the link
+       unconditionally and simply show nothing when it is not configured. */
+    char edit_url[MAX_PATH + 512] = "";
+    if (g_edit_url[0] && post->source[0])
+        snprintf(edit_url, sizeof(edit_url), "%s/%s", g_edit_url, post->source);
+
     const TemplateVar vars[] = {
         { "title",             post->title,               0 },
         { "date",              post->date,                0 },
@@ -79,6 +90,9 @@ int render_entry(const char *tmpl, const Post *post,
         { "site_description",  g_site_description,        0 },
         { "content",           html,                      1 },
         { "pages",             g_nav_html,                1 },
+        { "page_tree",         g_tree_html,               1 },
+        { "source_path",       post->source,              0 },
+        { "edit_url",          edit_url,                  0 },
         { "prev_url",          prev_url,                  0 },
         { "prev_title",        prev ? prev->title : "",   0 },
         { "next_url",          next_url,                  0 },
@@ -99,7 +113,10 @@ int render_entry(const char *tmpl, const Post *post,
         free(output);
         return -1;
     }
-    if (make_dir(dir) != 0) {
+    /* Only a page slug can be nested ("guide/install"); a post is always one
+       level down, so it does not pay for walking the path. */
+    int made = strchr(post->slug, '/') ? make_dir_p(dir) : make_dir(dir);
+    if (made != 0) {
         perror(dir);
         free(output);
         return -1;

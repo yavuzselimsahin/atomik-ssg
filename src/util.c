@@ -228,3 +228,16 @@ int make_dir(const char *path) {
 #endif
     return (errno == EEXIST) ? 0 : -1;
 }
+
+int make_dir_p(const char *path) {
+    char tmp[1024];
+    if (snprintf(tmp, sizeof(tmp), "%s", path) >= (int)sizeof(tmp)) return -1;
+
+    for (char *p = tmp + 1; *p; p++) {
+        if (*p != '/') continue;
+        *p = '\0';
+        if (make_dir(tmp) != 0) return -1;
+        *p = '/';
+    }
+    return make_dir(tmp);
+}

@@ -26,7 +26,8 @@ atomik-ssg is for those who want something smaller. A single binary, no runtime 
 
 - Markdown to HTML via [cmark](https://github.com/commonmark/cmark), linked statically
 - Frontmatter support (title, date, slug, description, draft)
-- Posts and standalone pages, with an automatic page menu
+- Posts, plus pages that nest into sections for documentation
+- Automatic page menu and sidebar, derived from `content/`
 - Drafts, kept out of the build until you want them
 - Previous/next navigation between posts
 - Theme system (default, dark, sepia — or bring your own)
@@ -89,6 +90,9 @@ my-blog/
 ├── config.toml
 ├── content/
 │   ├── about.md                        → /about/
+│   ├── guide/
+│   │   ├── index.md                    → /guide/
+│   │   └── install.md                  → /guide/install/
 │   └── posts/
 │       └── 2026-08-10-my-first-post.md → /posts/my-first-post/
 ├── themes/
@@ -97,6 +101,10 @@ my-blog/
 │   └── sepia/
 └── public/
 ```
+
+Directories nest as deeply as you like, and a directory's `index.md` becomes the
+directory itself rather than a child of it. `content/posts/` is the one
+exception: it holds the dated posts and stays out of the page hierarchy.
 
 Markdown under `content/posts/` becomes a dated post: it is listed on the index
 and in the feed. Markdown directly under `content/` becomes a standalone page at
@@ -124,6 +132,72 @@ Sorting transliterates before comparing, so `İletişim` lands between `About` a
 numbering their `order:` in the sequence you listed them — so the menu comes out
 the way you asked for it. The About page is prefilled with the author name and
 site description you already typed; the rest are outlines to edit.
+
+## Documentation Sites
+
+The same machinery builds a documentation site: nest your pages into sections
+and give them an `order:`, and the tool derives a sidebar and a reading order
+from the result.
+
+`{{pages}}` carries the top level only, which suits a menu bar. `{{page_tree}}`
+carries the whole hierarchy as a nested `<ul>`, which suits a sidebar:
+
+```html
+<aside>{{page_tree}}</aside>
+```
+
+A section with an `index.md` becomes a link; one without becomes a heading, so
+you can group pages without inventing a landing page for the group.
+
+On a page, `{{prev_*}}` and `{{next_*}}` follow that sidebar top to bottom
+rather than a calendar — "Next: Configuration" means the next thing to read.
+Posts keep their chronological neighbours.
+
+Set `edit_url` to offer an edit link on every page:
+
+```toml
+edit_url = "https://github.com/you/project/edit/main"
+```
+
+`{{edit_url}}` then expands to that base joined with the page's source file, and
+`{{source_path}}` gives the source file on its own. Both are empty when
+`edit_url` is unset, so a theme can carry the link unconditionally.
+
+Highlighting a code block is left to the theme: cmark already emits
+`<code class="language-c">`, so dropping a highlighter into the theme's
+`static/` is enough and the binary stays dependency-free.
+
+### The docs theme
+
+`atomik-ssg init` offers a fourth theme, `docs`, built around this: a sticky
+sidebar carrying `{{page_tree}}`, a top bar with the section menu, prev/next
+cards at the foot of every page, an edit link that disappears when `edit_url`
+is unset, and a palette that follows the reader's system light/dark setting.
+
+Choosing it changes what `init` scaffolds. A normal site is asked which
+starter pages it wants (About, Projects, Contact…) and gets a sample post; a
+docs site is asked nothing and gets a short guide to writing documentation
+with atomik-ssg instead — Getting Started, a Writing section and a Reference
+section, nested and ordered. It is a worked example of everything above, and
+it is yours to edit or delete.
+
+Its landing page is a table of contents rather than a feed. `content/posts/`
+is optional for a docs site: leave it empty, or delete it.
+
+The sidebar is generated once for the whole site, so the one thing it cannot
+know is which page it ended up on. Five lines of JavaScript at the end of the
+template mark the current entry — no per-page rebuild, no template
+conditionals.
+
+### Markdown support
+
+The bundled parser is [cmark](https://github.com/commonmark/cmark), which
+implements CommonMark exactly. Raw HTML in your markdown is passed through, so
+anything the syntax does not cover can be written by hand.
+
+GitHub's extensions are **not** part of CommonMark and are therefore not
+available: pipe tables, `~~strikethrough~~`, bare-URL autolinks and task lists
+all render as literal text. Write a table as HTML if you need one.
 
 ## Configuration
 
@@ -181,9 +255,12 @@ atomik-ssg build --drafts
 | `{{content}}` | post, page | rendered markdown |
 | `{{site_title}}` `{{site_description}}` | all | from `config.toml` |
 | `{{post_items}}` | index | the generated post list |
-| `{{pages}}` | all | the page menu, as `<li>` items |
-| `{{prev_url}}` `{{prev_title}}` | post | the older post, empty on the last one |
-| `{{next_url}}` `{{next_title}}` | post | the newer post, empty on the first one |
+| `{{pages}}` | all | the top-level page menu, as `<li>` items |
+| `{{page_tree}}` | all | the whole page hierarchy, as a nested `<ul>` |
+| `{{source_path}}` | post, page | the markdown file it was built from |
+| `{{edit_url}}` | post, page | `edit_url` joined with the source path |
+| `{{prev_url}}` `{{prev_title}}` | post, page | previous in reading order, empty at the start |
+| `{{next_url}}` `{{next_title}}` | post, page | next in reading order, empty at the end |
 
 Unknown placeholders are left in the output untouched. There are no conditionals:
 on the first and last post the navigation variables expand to nothing, and the

@@ -23,6 +23,8 @@ char    g_site_title[MAX_FIELD]        = "Atomik SSG";
 char    g_site_description[MAX_FIELD]  = "";
 int     g_include_drafts               = 0;
 const char *g_nav_html                 = "";
+const char *g_tree_html                = "";
+char    g_edit_url[512]                = "";
 
 #define DEFAULT_PORT 4545
 
@@ -60,6 +62,12 @@ static void load_config(int quiet) {
              toml_get_or(&g_toml, "", "title", "Atomik SSG"));
     snprintf(g_site_description, sizeof(g_site_description), "%s",
              toml_get_or(&g_toml, "", "description", ""));
+
+    /* Trailing slash trimmed so "{{edit_url}}" never comes out doubled. */
+    snprintf(g_edit_url, sizeof(g_edit_url), "%s",
+             toml_get_or(&g_toml, "", "edit_url", ""));
+    size_t elen = strlen(g_edit_url);
+    while (elen > 0 && g_edit_url[elen - 1] == '/') g_edit_url[--elen] = '\0';
 }
 
 /* Removes flag from argv if present, so the positional arguments stay simple. */

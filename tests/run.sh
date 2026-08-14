@@ -107,6 +107,11 @@ grep -q 'href="https://example.com"' "$M" && ok "link"       || bad "link"
 grep -q '<pre><code class="language-c">' "$M" && ok "fenced code block" || bad "fenced code block"
 grep -q '<li>one</li>'              "$M" && ok "list"        || bad "list"
 grep -q '<blockquote>'              "$M" && ok "blockquote"  || bad "blockquote"
+printf -- "---\ntitle: Raw\ndate: 2016-02-02\nslug: raw\n---\n\n<figure id=\"x\">html</figure>\n" > content/posts/raw.md
+"$BIN" build >/dev/null 2>&1
+grep -q '<figure id="x">html</figure>' public/posts/raw/index.html \
+    && ok "raw HTML passes through" || bad "raw HTML stripped"
+rm -f content/posts/raw.md
 
 group "Bad input"
 echo "$BUILD_OUT" | grep -q 'broken.md' && ok "bad frontmatter reported" || bad "bad frontmatter silent"
@@ -181,6 +186,59 @@ ls content/posts/ | grep -q 'c-the-language' && ok "punctuation collapsed" || ba
 ls content/posts/ | grep -q 'tirnaksiz-cok-kelimeli-baslik' && ok "unquoted multi-word title" || bad "multi-word title truncated"
 grep -q 'title: Tirnaksiz Cok Kelimeli Baslik' content/posts/*tirnaksiz*.md && ok "full title kept in frontmatter" || bad "title not joined"
 
+group "Nested pages and the doc tree"
+# a theme has to opt into the sidebar, so put the placeholders in one
+for t in page post; do
+    sed -i.bak 's|<article>|<aside class="tree">{{page_tree}}</aside><article>|' "themes/default/templates/$t.html"
+done
+sed -i.bak 's|</article>|</article><nav class="post-nav"><a class="prev" href="{{prev_url}}">{{prev_title}}</a><a class="next" href="{{next_url}}">{{next_title}}</a></nav><p class="edit"><a href="{{edit_url}}">{{source_path}}</a></p>|' themes/default/templates/page.html
+rm -f themes/default/templates/*.bak
+mkdir -p content/guide content/api content/guide/deep
+printf -- "---\ntitle: Guide\norder: 1\n---\n\nsection\n"   > content/guide/index.md
+printf -- "---\ntitle: Install\norder: 1\n---\n\nx\n"        > content/guide/install.md
+printf -- "---\ntitle: Yapılandırma\norder: 2\n---\n\nx\n"   > content/guide/config.md
+printf -- "---\ntitle: Deeper\n---\n\nx\n"                   > content/guide/deep/more.md
+printf -- "---\ntitle: API\norder: 2\n---\n\nsection\n"      > content/api/index.md
+printf -- "---\ntitle: build\n---\n\nx\n"                    > content/api/build.md
+printf 'edit_url = "https://example.com/edit/main"\n' > cfg.tmp && cat config.toml >> cfg.tmp && mv cfg.tmp config.toml
+"$BIN" build >/dev/null 2>&1
+
+[ -f public/guide/install/index.html ]     && ok "nested page published"        || bad "nested page missing"
+[ -f public/guide/index.html ]             && ok "index.md maps to its directory" || bad "index.md not mapped"
+[ -f public/guide/deep/more/index.html ]   && ok "two levels deep published"    || bad "deep page missing"
+[ -e public/guide/index/index.html ]       && bad "index.md published as a child" || ok "no /guide/index/ duplicate"
+
+tree_of() { grep -o '<aside class="tree">.*</aside>' "$1"; }
+tree_of public/guide/install/index.html | grep -q '<li><a href="/guide/">Guide</a><ul>' \
+    && ok "tree nests children under their section" || bad "tree not nested"
+tree_of public/guide/install/index.html | grep -q '/guide/install/' \
+    && ok "tree reaches leaf pages" || bad "leaf missing from tree"
+# the sidebar appears on posts too, not only on pages
+tree_of public/posts/newest/index.html | grep -q '/guide/' \
+    && ok "tree available on posts" || bad "tree missing on posts"
+# the top menu stays one level deep
+menu2() { grep -o '<nav class="site-nav">.*</nav>' "$1" | grep -o 'href="/[a-z-]*/"' | tr '\n' ' '; }
+check "menu shows sections, not their children" "$(menu2 public/index.html)" 'href="/guide/" href="/api/" href="/about/" '
+
+# prev/next must follow the sidebar, not the file system or a calendar
+nx() { grep -o 'class="next" href="[^"]*"' "$1" | sed 's/class="next" href="//;s/"//'; }
+pv() { grep -o 'class="prev" href="[^"]*"' "$1" | sed 's/class="prev" href="//;s/"//'; }
+check "section leads to its first child" "$(nx public/guide/index.html)"          "/guide/install/"
+check "reading order continues in order"  "$(nx public/guide/install/index.html)" "/guide/config/"
+# content/guide/deep has no index.md, so it is a heading with no page of its
+# own: reading order steps over it straight into its first child
+check "steps over a section with no index.md" "$(nx public/guide/config/index.html)" "/guide/deep/more/"
+tree_of public/guide/install/index.html | grep -q '<li><span>deep</span>' \
+    && ok "page-less section renders as a heading" || bad "page-less section became a link"
+check "crosses into the next section"     "$(nx public/guide/deep/more/index.html)" "/api/"
+check "prev walks back up"                "$(pv public/api/index.html)"           "/guide/deep/more/"
+check "last page in the tree has no next" "$(nx public/about/index.html)"         ""
+
+grep -q 'https://example.com/edit/main/content/guide/install.md' public/guide/install/index.html \
+    && ok "edit_url joins the source path" || bad "edit link wrong"
+rm -rf content/guide content/api
+"$BIN" build >/dev/null 2>&1
+
 group "Config"
 printf 'title = "T"\ntheme = "dark"\n\n[build]\noutput_dir = "docs"\n\n[server]\nport = %s\n' "$PORT" > config.toml
 "$BIN" build >/dev/null 2>&1
@@ -253,6 +311,51 @@ printf 'scaf2\n\n\n\n\n\n\n1\n2,nope,now\n' | "$BIN" init 2>&1 | grep -q 'ignori
 # piped init must still apply defaults for the questions it never reaches
 printf 'scaf3\n' | "$BIN" init >/dev/null 2>&1
 [ -f scaf3/content/about.md ] && ok "EOF falls back to defaults" || bad "EOF left answers empty"
+
+group "docs theme"
+cd "$WORK"
+# the pages question must not be asked for a docs site, so no answer is given
+D_INIT=$(printf 'dsite\nDocs Site\nA description\nY\nhttps://x.com\n\n\n4\n' | "$BIN" init 2>&1)
+echo "$D_INIT" | grep -q 'Starter pages' && bad "portfolio pages offered for a docs site" || ok "portfolio pages not offered for docs"
+echo "$D_INIT" | grep -q 'docs theme starts you off' && ok "docs scaffold announced" || bad "no docs scaffold notice"
+for f in index page post; do
+    [ -f "dsite/themes/docs/templates/$f.html" ] || bad "docs $f.html missing"
+done
+[ -f dsite/themes/docs/templates/page.html ] && ok "docs theme scaffolded" || bad "docs theme missing"
+[ -f dsite/themes/docs/static/style.css ]     && ok "docs stylesheet written" || bad "docs stylesheet missing"
+grep -q 'theme       = "docs"' dsite/config.toml && ok "picker selects docs" || bad "docs not selected"
+grep -q '{{page_tree}}' dsite/themes/docs/templates/page.html && ok "sidebar carries the tree" || bad "no tree in sidebar"
+grep -q '{{page_tree}}' dsite/themes/docs/templates/post.html && ok "posts get the sidebar too" || bad "post lacks sidebar"
+cd dsite
+# the scaffold is the tutorial: it must exist, nest, and carry no blog
+[ -f content/getting-started.md ]     && ok "getting-started scaffolded"  || bad "no getting-started page"
+[ -f content/writing/pages.md ]       && ok "nested guide scaffolded"     || bad "no nested guide"
+[ -f content/reference/commands.md ]  && ok "reference section scaffolded" || bad "no reference section"
+[ -z "$(ls content/posts 2>/dev/null)" ] && ok "docs site starts with no posts" || bad "docs site got a sample post"
+[ -f content/about.md ]               && bad "docs site got a portfolio page" || ok "no portfolio pages on a docs site"
+D_BUILD=$("$BIN" build 2>&1)
+echo "$D_BUILD" | grep -q '0 post(s), 8 page(s)' && ok "scaffold builds to 8 pages" || bad "unexpected build: $(echo "$D_BUILD" | tail -1)"
+echo "$D_BUILD" | grep -q 'post_items' && bad "warns about the missing post list" || ok "quiet about the absent post list"
+grep -q 'class="post-list"' public/index.html && bad "docs landing page lists posts" || ok "docs landing page is not a feed"
+grep -q '<nav class="contents">' public/index.html && ok "docs landing page is a table of contents" || bad "no contents on the landing page"
+grep -q 'href="/writing/pages/"' public/index.html && ok "contents reaches nested pages" || bad "contents is not nested"
+# the scaffold must not lean on markdown cmark cannot render
+grep -rq '^|' content/ && bad "scaffold uses pipe tables cmark cannot render" || ok "scaffold avoids GFM-only syntax"
+mkdir -p content/guide
+printf -- "---\ntitle: Guide\norder: 1\n---\n\nx\n"    > content/guide/index.md
+printf -- "---\ntitle: Install\norder: 1\n---\n\nx\n"  > content/guide/install.md
+printf 'edit_url = "https://example.com/edit/main"\n' > c.tmp && cat config.toml >> c.tmp && mv c.tmp config.toml
+"$BIN" build >/dev/null 2>&1
+G=public/guide/install/index.html
+grep -q '<aside class="sidebar">' "$G"       && ok "sidebar rendered"      || bad "sidebar missing"
+grep -q 'href="/guide/install/"' "$G"        && ok "tree lists the page"   || bad "tree incomplete"
+grep -q "classList.add('active')" "$G"       && ok "current-page script shipped" || bad "no active-page script"
+grep -q 'class="edit" href="https://example.com/edit/main/content/guide/install.md"' "$G" \
+    && ok "edit link composed" || bad "edit link wrong"
+grep -q 'a.edit\[href=""\]' public/style.css || grep -q '.edit\[href=""\]' public/style.css \
+    && ok "empty edit link hidden by CSS" || bad "no rule hiding an unset edit link"
+grep -q 'prefers-color-scheme' public/style.css && ok "docs theme follows the system palette" || bad "no dark mode"
+cd "$WORK"
 
 group "Deploy safety"
 cd site

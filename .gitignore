@@ -9,3 +9,7 @@ atomik-ssg
 /static/
 /templates/
 .bashrc
+
+# atom-builder
+build/
+dist/

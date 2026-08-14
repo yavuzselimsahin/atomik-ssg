@@ -7,7 +7,7 @@ LDFLAGS ?=
 WARNINGS         := -Wall -Wextra
 override CFLAGS  += $(WARNINGS) -I./include -MMD -MP
 
-SRCS := src/main.c src/util.c src/parser.c src/render.c src/build.c \
+SRCS := src/main.c src/util.c src/parser.c src/render.c src/build.c src/tree.c \
         src/serve.c src/init.c src/deploy.c src/rss.c toml.c
 
 # ---------------------------------------------------------------------------

@@ -75,6 +75,390 @@ static const struct {
 
 #define PAGE_COUNT ((int)(sizeof(PAGE_TEMPLATES) / sizeof(PAGE_TEMPLATES[0])))
 
+/* ------------------------------------------------------------------ *
+ * The docs theme.
+ *
+ * Unlike the three blog themes it needs its own templates, not just its own
+ * colours: a sidebar carrying {{page_tree}} sits beside the content on every
+ * kind of page. These strings contain no substitutions, so they are written
+ * with fputs — a stray % in the CSS is a format specifier to fprintf.
+ * ------------------------------------------------------------------ */
+
+/* Shared by all three docs templates.
+
+   The top bar carries only the site name. The sidebar already lists every
+   section, so repeating them up here would just compete with it. */
+#define DOCS_SHELL_HEAD \
+    "<!DOCTYPE html>\n" \
+    "<html lang=\"en\">\n" \
+    "<head>\n" \
+    "    <meta charset=\"UTF-8\">\n" \
+    "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n" \
+    "    <title>{{title}}</title>\n" \
+    "    <meta name=\"description\" content=\"{{description}}\">\n" \
+    "    <link rel=\"stylesheet\" href=\"/style.css\">\n" \
+    "</head>\n" \
+    "<body>\n" \
+    "    <header class=\"topbar\">\n" \
+    "        <a class=\"brand\" href=\"/\">{{site_title}}</a>\n" \
+    "    </header>\n" \
+    "    <div class=\"layout\">\n" \
+    "        <aside class=\"sidebar\">{{page_tree}}</aside>\n" \
+    "        <main>\n"
+
+/* Marks the entry the reader is on. The tree is built once for the whole site,
+   so the one thing it cannot know is which page it ended up in. */
+#define DOCS_SHELL_TAIL \
+    "        </main>\n" \
+    "    </div>\n" \
+    "    <script>\n" \
+    "    (function () {\n" \
+    "        var here = location.pathname;\n" \
+    "        document.querySelectorAll('.sidebar a').forEach(function (a) {\n" \
+    "            if (a.getAttribute('href') === here) a.classList.add('active');\n" \
+    "        });\n" \
+    "    })();\n" \
+    "    </script>\n" \
+    "</body>\n" \
+    "</html>\n"
+
+#define DOCS_FOOTER \
+    "            <nav class=\"post-nav\">\n" \
+    "                <a class=\"prev\" href=\"{{prev_url}}\">{{prev_title}}</a>\n" \
+    "                <a class=\"next\" href=\"{{next_url}}\">{{next_title}}</a>\n" \
+    "            </nav>\n" \
+    "            <a class=\"edit\" href=\"{{edit_url}}\">Edit this page</a>\n"
+
+/* A documentation landing page is a table of contents, not a feed. Listing
+   {{page_tree}} keeps it correct no matter which pages exist, where a
+   hand-written "start here" link would rot the moment one is renamed. */
+static const char DOCS_INDEX[] =
+    DOCS_SHELL_HEAD
+    "            <article>\n"
+    "                <h1>{{site_title}}</h1>\n"
+    "                <p class=\"lede\">{{site_description}}</p>\n"
+    "            </article>\n"
+    "            <nav class=\"contents\">\n"
+    "                <h2>Contents</h2>\n"
+    "                {{page_tree}}\n"
+    "            </nav>\n"
+    DOCS_SHELL_TAIL;
+
+static const char DOCS_PAGE[] =
+    DOCS_SHELL_HEAD
+    "            <article>\n"
+    "                <h1>{{title}}</h1>\n"
+    "                {{content}}\n"
+    "            </article>\n"
+    DOCS_FOOTER
+    DOCS_SHELL_TAIL;
+
+static const char DOCS_POST[] =
+    DOCS_SHELL_HEAD
+    "            <article>\n"
+    "                <h1>{{title}}</h1>\n"
+    "                <time>{{date}}</time>\n"
+    "                {{content}}\n"
+    "            </article>\n"
+    DOCS_FOOTER
+    DOCS_SHELL_TAIL;
+
+static const char DOCS_CSS[] =
+    ":root {\n"
+    "    --bg:       #ffffff;\n"
+    "    --panel:    #f8fafc;\n"
+    "    --border:   #e2e8f0;\n"
+    "    --text:     #1e293b;\n"
+    "    --muted:    #64748b;\n"
+    "    --accent:   #2563eb;\n"
+    "    --code-bg:  #f1f5f9;\n"
+    "}\n"
+    "@media (prefers-color-scheme: dark) {\n"
+    "    :root {\n"
+    "        --bg:      #0f172a;\n"
+    "        --panel:   #131c31;\n"
+    "        --border:  #1e293b;\n"
+    "        --text:    #e2e8f0;\n"
+    "        --muted:   #94a3b8;\n"
+    "        --accent:  #60a5fa;\n"
+    "        --code-bg: #131c31;\n"
+    "    }\n"
+    "}\n"
+    "* { box-sizing: border-box; margin: 0; padding: 0; }\n"
+    "body { background: var(--bg); color: var(--text); line-height: 1.7;\n"
+    "    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,\n"
+    "        Helvetica, Arial, sans-serif; }\n"
+    "\n"
+    "/* top bar */\n"
+    ".topbar { padding: 0.9rem 1.5rem; border-bottom: 1px solid var(--border);\n"
+    "    position: sticky; top: 0; background: var(--bg); z-index: 10; }\n"
+    ".brand { font-weight: 600; color: var(--text); text-decoration: none; }\n"
+    "\n"
+    "/* two columns, one on a phone */\n"
+    ".layout { display: grid; grid-template-columns: 240px minmax(0, 1fr);\n"
+    "    gap: 3rem; max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }\n"
+    "@media (max-width: 800px) {\n"
+    "    .layout { grid-template-columns: 1fr; gap: 1.5rem; }\n"
+    "    .sidebar { position: static; max-height: none;\n"
+    "        border-bottom: 1px solid var(--border); padding-bottom: 1rem; }\n"
+    "}\n"
+    "\n"
+    "/* sidebar */\n"
+    ".sidebar { position: sticky; top: 4.5rem; align-self: start;\n"
+    "    max-height: calc(100vh - 6rem); overflow-y: auto; font-size: 0.9rem; }\n"
+    ".sidebar ul { list-style: none; }\n"
+    ".sidebar > ul > li { margin-bottom: 1.2rem; }\n"
+    ".sidebar ul ul { margin: 0.3rem 0 0 0; padding-left: 0.8rem;\n"
+    "    border-left: 1px solid var(--border); }\n"
+    ".sidebar ul ul li { margin: 0.15rem 0; }\n"
+    ".sidebar a, .sidebar span { display: block; padding: 0.2rem 0.5rem;\n"
+    "    border-radius: 4px; text-decoration: none; color: var(--muted); }\n"
+    ".sidebar > ul > li > a, .sidebar > ul > li > span {\n"
+    "    color: var(--text); font-weight: 600; }\n"
+    ".sidebar a:hover { background: var(--panel); color: var(--accent); }\n"
+    ".sidebar a.active { background: var(--panel); color: var(--accent);\n"
+    "    font-weight: 600; }\n"
+    "\n"
+    "/* content */\n"
+    "main { min-width: 0; }\n"
+    "article h1 { font-size: 2rem; line-height: 1.25; margin-bottom: 1.2rem; }\n"
+    "article h2 { font-size: 1.35rem; margin: 2.2rem 0 0.8rem;\n"
+    "    padding-top: 0.6rem; border-top: 1px solid var(--border); }\n"
+    "article h3 { font-size: 1.1rem; margin: 1.6rem 0 0.5rem; }\n"
+    "article p, article ul, article ol { margin-bottom: 1.1rem; }\n"
+    "article ul, article ol { padding-left: 1.4rem; }\n"
+    "article a { color: var(--accent); }\n"
+    "article time { display: block; color: var(--muted); font-size: 0.85rem;\n"
+    "    margin: -0.6rem 0 1.6rem; }\n"
+    ".lede { color: var(--muted); font-size: 1.1rem; }\n"
+    "table { border-collapse: collapse; width: 100%; margin-bottom: 1.2rem;\n"
+    "    display: block; overflow-x: auto; }\n"
+    "th, td { border: 1px solid var(--border); padding: 0.5rem 0.8rem;\n"
+    "    text-align: left; }\n"
+    "th { background: var(--panel); }\n"
+    "pre { background: var(--code-bg); border: 1px solid var(--border);\n"
+    "    border-radius: 6px; padding: 1rem; overflow-x: auto;\n"
+    "    margin-bottom: 1.2rem; font-size: 0.88rem; line-height: 1.5; }\n"
+    "code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;\n"
+    "    font-size: 0.88em; }\n"
+    ":not(pre) > code { background: var(--code-bg); padding: 0.15em 0.4em;\n"
+    "    border-radius: 4px; }\n"
+    "blockquote { border-left: 3px solid var(--accent); background: var(--panel);\n"
+    "    padding: 0.8rem 1rem; margin-bottom: 1.2rem; color: var(--muted); }\n"
+    "\n"
+    "/* table of contents on the landing page */\n"
+    ".contents { margin-top: 2.5rem; }\n"
+    ".contents h2 { font-size: 0.85rem; text-transform: uppercase;\n"
+    "    letter-spacing: 0.06em; color: var(--muted); margin-bottom: 0.8rem; }\n"
+    ".contents ul { list-style: none; }\n"
+    ".contents > ul > li { padding: 0.7rem 0;\n"
+    "    border-bottom: 1px solid var(--border); }\n"
+    ".contents > ul > li > a, .contents > ul > li > span {\n"
+    "    font-weight: 600; font-size: 1.05rem; color: var(--text);\n"
+    "    text-decoration: none; }\n"
+    ".contents > ul > li > a:hover { color: var(--accent); }\n"
+    ".contents ul ul { display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem;\n"
+    "    margin-top: 0.35rem; }\n"
+    ".contents ul ul a { color: var(--muted); text-decoration: none;\n"
+    "    font-size: 0.9rem; }\n"
+    ".contents ul ul a:hover { color: var(--accent); }\n"
+    "\n"
+    "/* footer navigation */\n"
+    ".post-nav { display: flex; gap: 1rem; margin-top: 3rem; }\n"
+    ".post-nav a { flex: 1; max-width: 50%; padding: 0.8rem 1rem;\n"
+    "    border: 1px solid var(--border); border-radius: 6px;\n"
+    "    color: var(--accent); text-decoration: none; font-size: 0.9rem; }\n"
+    ".post-nav a:hover { background: var(--panel); }\n"
+    ".post-nav a:empty { display: none; }\n"
+    ".post-nav .prev::before { content: \"\\2190  \"; }\n"
+    ".post-nav .next { margin-left: auto; text-align: right; }\n"
+    ".post-nav .next::after { content: \"  \\2192\"; }\n"
+    "/* empty when config.toml sets no edit_url */\n"
+    ".edit { display: inline-block; margin-top: 2rem; font-size: 0.85rem;\n"
+    "    color: var(--muted); }\n"
+    ".edit[href=\"\"] { display: none; }\n";
+
+/* Starter documentation. It is written for the person who just ran init, and
+   it doubles as a worked example of sections, ordering and index.md. Note the
+   absence of pipe tables: the bundled cmark is strict CommonMark, so a table
+   here would render as literal text. */
+static const struct {
+    const char *path;
+    const char *body;
+} DOCS_CONTENT[] = {
+{ "getting-started.md",
+  "---\n"
+  "title: Getting Started\n"
+  "description: Build this site and add your first page\n"
+  "order: 1\n"
+  "---\n\n"
+  "Everything on this site is a markdown file under `content/`, and every entry\n"
+  "in the sidebar is one of those files. Nothing registers pages anywhere else.\n\n"
+  "## Build and preview\n\n"
+  "```bash\n"
+  "atomik-ssg build\n"
+  "atomik-ssg serve\n"
+  "```\n\n"
+  "`build` writes the site into `public/`. `serve` hosts that directory at\n"
+  "<http://localhost:4545>. Run `build` again after each change and refresh.\n\n"
+  "## Add a page\n\n"
+  "Create `content/install.md`:\n\n"
+  "```markdown\n"
+  "---\n"
+  "title: Installation\n"
+  "order: 2\n"
+  "---\n\n"
+  "Your content here.\n"
+  "```\n\n"
+  "Build, and it appears in the sidebar at `/install/`.\n\n"
+  "## Where to go next\n\n"
+  "- [Pages and Sections](/writing/pages/) turns files into URLs\n"
+  "- [Navigation](/writing/navigation/) controls the order things appear in\n"
+  "- [Reference](/reference/) lists the commands, frontmatter and variables\n" },
+
+{ "writing/index.md",
+  "---\n"
+  "title: Writing Docs\n"
+  "description: How content is organised\n"
+  "order: 2\n"
+  "---\n\n"
+  "This section covers how markdown files become pages and how you control the\n"
+  "shape of the sidebar.\n\n"
+  "A directory becomes a section. Giving it an `index.md` — as this one has —\n"
+  "makes the section itself a page; leave it out and the section is only a\n"
+  "heading over its children.\n" },
+
+{ "writing/pages.md",
+  "---\n"
+  "title: Pages and Sections\n"
+  "description: How files map to URLs\n"
+  "order: 1\n"
+  "---\n\n"
+  "A file's location is its URL. There is no routing table.\n\n"
+  "- `content/install.md` becomes `/install/`\n"
+  "- `content/writing/pages.md` becomes `/writing/pages/`\n"
+  "- `content/writing/index.md` becomes `/writing/` itself\n\n"
+  "Directories nest as deep as you need.\n\n"
+  "## Slugs\n\n"
+  "The URL comes from the file name, lowercased and stripped of anything that\n"
+  "is not a letter, digit or dash. Accented and non-Latin letters are\n"
+  "transliterated, so `Yapılandırma.md` becomes `/yapilandirma/`.\n\n"
+  "Set `slug:` in the frontmatter to override the last part of the path:\n\n"
+  "```markdown\n"
+  "---\n"
+  "title: Installation\n"
+  "slug: install\n"
+  "---\n"
+  "```\n\n"
+  "## Drafts\n\n"
+  "`draft: true` keeps a page out of the build entirely — no page, no sidebar\n"
+  "entry. Preview drafts with `atomik-ssg build --drafts`.\n\n"
+  "## Blog posts\n\n"
+  "Markdown under `content/posts/` is a dated post instead of a page: it is\n"
+  "listed chronologically and carries an RSS entry. A documentation site can\n"
+  "ignore that directory, or delete it.\n" },
+
+{ "writing/navigation.md",
+  "---\n"
+  "title: Navigation\n"
+  "description: Ordering the sidebar\n"
+  "order: 2\n"
+  "---\n\n"
+  "The sidebar is derived from `content/`, so adding a file is all it takes to\n"
+  "publish it. What you do control is the order.\n\n"
+  "## Ordering\n\n"
+  "Pages without an `order:` are sorted alphabetically by title. Add `order:`\n"
+  "to the ones whose position matters and they move to the front, lowest\n"
+  "first:\n\n"
+  "```markdown\n"
+  "---\n"
+  "title: Getting Started\n"
+  "order: 1\n"
+  "---\n"
+  "```\n\n"
+  "Ordering applies at each level independently, so a section's children are\n"
+  "arranged among themselves.\n\n"
+  "## Previous and next\n\n"
+  "Every page carries links to its neighbours, and those follow the sidebar\n"
+  "from top to bottom — the reading order, not the file system or a calendar.\n"
+  "Reordering the sidebar reorders them with it.\n\n"
+  "## The top bar\n\n"
+  "The menu across the top lists only top-level entries, so it stays short as\n"
+  "the tree grows.\n" },
+
+{ "reference/index.md",
+  "---\n"
+  "title: Reference\n"
+  "description: Commands, frontmatter and template variables\n"
+  "order: 3\n"
+  "---\n\n"
+  "The details, once you know your way around.\n" },
+
+{ "reference/commands.md",
+  "---\n"
+  "title: Commands\n"
+  "description: The command line\n"
+  "order: 1\n"
+  "---\n\n"
+  "- `atomik-ssg init` scaffolds a new project\n"
+  "- `atomik-ssg build` generates the site into `public/`\n"
+  "- `atomik-ssg build --drafts` includes pages marked `draft: true`\n"
+  "- `atomik-ssg serve` serves `public/` at <http://localhost:4545>\n"
+  "- `atomik-ssg serve 8080` serves it on another port\n"
+  "- `atomik-ssg new My Post Title` creates a dated post\n"
+  "- `atomik-ssg deploy` builds, then mirrors the output over rsync\n"
+  "- `atomik-ssg help` prints all of this\n" },
+
+{ "reference/frontmatter.md",
+  "---\n"
+  "title: Frontmatter\n"
+  "description: The fields a page can set\n"
+  "order: 2\n"
+  "---\n\n"
+  "Every field is optional.\n\n"
+  "- `title` — shown as the heading and in the sidebar. Falls back to the slug\n"
+  "- `description` — used for the page's meta description\n"
+  "- `slug` — overrides the URL segment taken from the file name\n"
+  "- `order` — position in the sidebar. Unset means alphabetical, after the\n"
+  "  pages that set it\n"
+  "- `draft` — `true` keeps the page out of the build\n"
+  "- `date` — posts only. Taken from the file name when omitted\n" },
+
+{ "reference/templates.md",
+  "---\n"
+  "title: Template Variables\n"
+  "description: What a theme can place\n"
+  "order: 3\n"
+  "---\n\n"
+  "Templates live in `themes/<name>/templates/`. Any `{{name}}` below is\n"
+  "replaced; anything unrecognised is left alone.\n\n"
+  "- `{{title}}`, `{{description}}`, `{{slug}}`, `{{date}}` — this page\n"
+  "- `{{content}}` — the rendered markdown\n"
+  "- `{{site_title}}`, `{{site_description}}` — from `config.toml`\n"
+  "- `{{page_tree}}` — the whole hierarchy, as a nested list\n"
+  "- `{{pages}}` — top-level entries only, for a menu bar\n"
+  "- `{{post_items}}` — the chronological post list, on the index\n"
+  "- `{{prev_url}}`, `{{prev_title}}`, `{{next_url}}`, `{{next_title}}`\n"
+  "- `{{source_path}}` — the markdown file this page came from\n"
+  "- `{{edit_url}}` — that path joined to `edit_url` in `config.toml`\n\n"
+  "Set `edit_url` to put an edit link on every page:\n\n"
+  "```toml\n"
+  "edit_url = \"https://github.com/you/project/edit/main\"\n"
+  "```\n\n"
+  "It is empty when unset, and the theme hides the link rather than showing a\n"
+  "dead one.\n" },
+};
+
+#define DOCS_CONTENT_COUNT ((int)(sizeof(DOCS_CONTENT) / sizeof(DOCS_CONTENT[0])))
+
+static void write_text(const char *path, const char *body, const char *label) {
+    FILE *f = fopen(path, "w");
+    if (!f) { perror(path); return; }
+    fputs(body, f);
+    fclose(f);
+    printf("  created  %s\n", label);
+}
+
 static void prompt(const char *question, const char *fallback,
                    char *out, int size) {
     printf("%s", question);
@@ -194,21 +578,33 @@ void cmd_init(void) {
     printf("\nAvailable themes:\n");
     printf("  1) default  (light, minimal)\n");
     printf("  2) dark     (terminal feel)\n");
-    printf("  3) sepia    (warm, book-like)\n\n");
+    printf("  3) sepia    (warm, book-like)\n");
+    printf("  4) docs     (sidebar, for project documentation)\n\n");
     prompt("Theme", "1", theme_choice, sizeof(theme_choice));
 
-    printf("\nStarter pages (these become the site menu, in the order you list them):\n");
-    for (int i = 0; i < PAGE_COUNT; i++)
-        printf("  %d) %-9s %s\n", i + 1, PAGE_TEMPLATES[i].slug, PAGE_TEMPLATES[i].summary);
-    printf("\n");
-    prompt("Pages, comma separated", "about", page_choice, sizeof(page_choice));
-
     if (strcmp(theme_choice, "2") == 0)
-        strncpy(theme_name, "dark", sizeof(theme_name) - 1);
+        snprintf(theme_name, sizeof(theme_name), "dark");
     else if (strcmp(theme_choice, "3") == 0)
-        strncpy(theme_name, "sepia", sizeof(theme_name) - 1);
+        snprintf(theme_name, sizeof(theme_name), "sepia");
+    else if (strcmp(theme_choice, "4") == 0)
+        snprintf(theme_name, sizeof(theme_name), "docs");
     else
-        strncpy(theme_name, "default", sizeof(theme_name) - 1);
+        snprintf(theme_name, sizeof(theme_name), "default");
+
+    int is_docs = strcmp(theme_name, "docs") == 0;
+
+    /* A documentation site gets a starter set of docs instead; asking it
+       whether it wants an About or a Now page would only be noise. */
+    if (is_docs) {
+        printf("\nThe docs theme starts you off with a short guide to writing\n");
+        printf("documentation with atomik-ssg, which you can edit or delete.\n");
+    } else {
+        printf("\nStarter pages (these become the site menu, in the order you list them):\n");
+        for (int i = 0; i < PAGE_COUNT; i++)
+            printf("  %d) %-9s %s\n", i + 1, PAGE_TEMPLATES[i].slug, PAGE_TEMPLATES[i].summary);
+        printf("\n");
+        prompt("Pages, comma separated", "about", page_choice, sizeof(page_choice));
+    }
 
     printf("\n");
 
@@ -238,6 +634,9 @@ void cmd_init(void) {
     MKPATH("themes/sepia");
     MKPATH("themes/sepia/templates");
     MKPATH("themes/sepia/static");
+    MKPATH("themes/docs");
+    MKPATH("themes/docs/templates");
+    MKPATH("themes/docs/static");
     MKPATH("content");
     MKPATH("content/posts");
     MKPATH("static");
@@ -522,36 +921,70 @@ void cmd_init(void) {
         printf("  created  %s/themes/sepia/static/style.css\n", name);
     }
 
-    /* Example post, dated today rather than whenever this program was written */
-    time_t     now = time(NULL);
-    struct tm *tm  = localtime(&now);
-    char       today[16];
-    if (!tm || strftime(today, sizeof(today), "%Y-%m-%d", tm) == 0)
-        snprintf(today, sizeof(today), "1970-01-01");
-
-    snprintf(path, sizeof(path), "%s/content/posts/%s-hello-world.md", name, today);
-    f = fopen(path, "w");
-    if (f) {
-        fprintf(f,
-            "---\n"
-            "title: Hello World\n"
-            "date: %s\n"
-            "slug: hello-world\n"
-            "description: My first post\n"
-            "draft: false\n"
-            "---\n\n"
-            "Welcome to my blog. This is the first post.\n",
-            today);
-        fclose(f);
-        printf("  created  %s/content/posts/%s-hello-world.md\n", name, today);
+    /* docs theme: its own templates, not just its own palette */
+    {
+        struct { const char *file; const char *body; } docs[] = {
+            { "templates/index.html", DOCS_INDEX },
+            { "templates/page.html",  DOCS_PAGE  },
+            { "templates/post.html",  DOCS_POST  },
+            { "static/style.css",     DOCS_CSS   },
+        };
+        for (size_t i = 0; i < sizeof(docs) / sizeof(docs[0]); i++) {
+            char label[600];
+            snprintf(path,  sizeof(path),  "%s/themes/docs/%s", name, docs[i].file);
+            snprintf(label, sizeof(label), "%s/themes/docs/%s", name, docs[i].file);
+            write_text(path, docs[i].body, label);
+        }
     }
 
-    /* Starter pages. Markdown at the top of content/ is published at /<slug>/
-       and linked from the menu automatically. */
-    int picked[PAGE_COUNT];
-    int npicked = parse_page_choice(page_choice, picked);
-    for (int i = 0; i < npicked; i++)
-        write_page(name, picked[i], i + 1, author, desc);
+    if (is_docs) {
+        for (int i = 0; i < DOCS_CONTENT_COUNT; i++) {
+            char label[600];
+            snprintf(path, sizeof(path), "%s/content/%s", name, DOCS_CONTENT[i].path);
+
+            /* reference/commands.md needs content/reference/ to exist first */
+            char *slash = strrchr(path, '/');
+            if (slash) {
+                *slash = '\0';
+                if (make_dir_p(path) != 0) { perror(path); return; }
+                *slash = '/';
+            }
+
+            snprintf(label, sizeof(label), "%s/content/%s", name, DOCS_CONTENT[i].path);
+            write_text(path, DOCS_CONTENT[i].body, label);
+        }
+    } else {
+        /* Example post, dated today rather than whenever this program was written */
+        time_t     now = time(NULL);
+        struct tm *tm  = localtime(&now);
+        char       today[16];
+        if (!tm || strftime(today, sizeof(today), "%Y-%m-%d", tm) == 0)
+            snprintf(today, sizeof(today), "1970-01-01");
+
+        snprintf(path, sizeof(path), "%s/content/posts/%s-hello-world.md", name, today);
+        f = fopen(path, "w");
+        if (f) {
+            fprintf(f,
+                "---\n"
+                "title: Hello World\n"
+                "date: %s\n"
+                "slug: hello-world\n"
+                "description: My first post\n"
+                "draft: false\n"
+                "---\n\n"
+                "Welcome to my blog. This is the first post.\n",
+                today);
+            fclose(f);
+            printf("  created  %s/content/posts/%s-hello-world.md\n", name, today);
+        }
+
+        /* Starter pages. Markdown at the top of content/ is published at
+           /<slug>/ and linked from the menu automatically. */
+        int picked[PAGE_COUNT];
+        int npicked = parse_page_choice(page_choice, picked);
+        for (int i = 0; i < npicked; i++)
+            write_page(name, picked[i], i + 1, author, desc);
+    }
 
     printf("\nDone! Next steps:\n\n");
     printf("  cd %s\n", name);

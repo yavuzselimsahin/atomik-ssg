@@ -224,6 +224,7 @@ int collect_posts(const char *dirpath, PostList *list) {
             continue;
         }
         p.raw = raw;
+        snprintf(p.source, sizeof(p.source), "%s", path);
 
         /* Always normalise the slug: it becomes a directory name, so it must
            not be able to contain '/', '..' or anything else path-significant. */
@@ -258,6 +259,132 @@ int collect_posts(const char *dirpath, PostList *list) {
     if (list->count > 1)
         qsort(list->posts, (size_t)list->count, sizeof(Post), post_cmp);
 
+    return 0;
+}
+
+/* ------------------------------------------------------------------ */
+
+#define PAGE_MAX_DEPTH 16
+
+/* Reads one markdown file into p, deriving whatever the frontmatter omitted.
+   url_prefix is the already-slugified directory path it sits under. */
+static int load_page(const char *fs_path, const char *fname,
+                     const char *url_prefix, Post *p) {
+    char *raw = read_file(fs_path);
+    if (!raw) return -1;
+
+    memset(p, 0, sizeof(*p));
+    p->order = INT_MAX;
+    if (parse_frontmatter(raw, p) != 0) {
+        fprintf(stderr, "Warning: missing or unterminated frontmatter, skipping %s\n", fs_path);
+        free(raw);
+        return -1;
+    }
+    p->raw = raw;
+    snprintf(p->source, sizeof(p->source), "%s", fs_path);
+
+    /* The leaf name: an explicit slug replaces it, the file name supplies it
+       otherwise. Either way it is reduced to one safe path segment. */
+    char leaf[MAX_FIELD];
+    if (p->slug[0] != '\0') {
+        slugify(p->slug, leaf, sizeof(leaf));
+    } else {
+        char base[MAX_PATH];
+        snprintf(base, sizeof(base), "%s", fname);
+        char *dot = strrchr(base, '.');
+        if (dot) *dot = '\0';
+        slugify(base, leaf, sizeof(leaf));
+    }
+
+    /* index.md names the directory it lives in rather than a child of it. */
+    int is_index = strcmp(leaf, "index") == 0;
+
+    if (is_index) {
+        snprintf(p->slug, sizeof(p->slug), "%s", url_prefix);
+    } else if (url_prefix[0]) {
+        snprintf(p->slug, sizeof(p->slug), "%s/%s", url_prefix, leaf);
+    } else {
+        snprintf(p->slug, sizeof(p->slug), "%s", leaf);
+    }
+
+    if (p->slug[0] == '\0') {
+        fprintf(stderr, "Warning: %s would sit at the site root and overwrite the "
+                        "generated index, skipping it\n", fs_path);
+        free(raw);
+        return -1;
+    }
+
+    if (p->title[0] == '\0') {
+        const char *last = strrchr(p->slug, '/');
+        snprintf(p->title, sizeof(p->title), "%s", last ? last + 1 : p->slug);
+    }
+    return 0;
+}
+
+static void walk_pages(const char *fs_dir, const char *url_prefix,
+                       PostList *list, const char *skip_subdir, int depth) {
+    if (depth > PAGE_MAX_DEPTH) {
+        fprintf(stderr, "Warning: content nested deeper than %d levels, skipping %s\n",
+                PAGE_MAX_DEPTH, fs_dir);
+        return;
+    }
+
+    DIR *d = opendir(fs_dir);
+    if (!d) return;
+
+    struct dirent *e;
+    while ((e = readdir(d)) != NULL) {
+        if (e->d_name[0] == '.') continue;
+
+        char fs_path[MAX_PATH];
+        if (snprintf(fs_path, sizeof(fs_path), "%s/%s", fs_dir, e->d_name) >= (int)sizeof(fs_path)) {
+            fprintf(stderr, "Warning: path too long, skipping %s/%s\n", fs_dir, e->d_name);
+            continue;
+        }
+
+        DIR *sub = opendir(fs_path);
+        if (sub) {
+            closedir(sub);
+            /* content/posts/ is the dated half of the site, not part of the tree. */
+            if (depth == 0 && skip_subdir && strcmp(e->d_name, skip_subdir) == 0) continue;
+
+            char seg[MAX_FIELD], next_prefix[MAX_PATH];
+            slugify(e->d_name, seg, sizeof(seg));
+            if (seg[0] == '\0') continue;
+
+            if (url_prefix[0])
+                snprintf(next_prefix, sizeof(next_prefix), "%s/%s", url_prefix, seg);
+            else
+                snprintf(next_prefix, sizeof(next_prefix), "%s", seg);
+
+            walk_pages(fs_path, next_prefix, list, skip_subdir, depth + 1);
+            continue;
+        }
+
+        const char *ext = strrchr(e->d_name, '.');
+        if (!ext || strcmp(ext, ".md") != 0) continue;
+
+        Post p;
+        if (load_page(fs_path, e->d_name, url_prefix, &p) != 0) continue;
+        if (postlist_push(list, &p) != 0) {
+            fprintf(stderr, "Error: out of memory collecting pages\n");
+            free(p.raw);
+            break;
+        }
+    }
+    closedir(d);
+}
+
+int collect_pages(const char *dir, PostList *list, const char *skip_subdir) {
+    list->posts = NULL;
+    list->count = 0;
+    list->cap   = 0;
+
+    DIR *probe = opendir(dir);
+    if (!probe) return -1;
+    closedir(probe);
+
+    walk_pages(dir, "", list, skip_subdir, 0);
     return 0;
 }
 
