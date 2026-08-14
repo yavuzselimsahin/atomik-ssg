@@ -312,6 +312,23 @@ printf 'scaf2\n\n\n\n\n\n\n1\n2,nope,now\n' | "$BIN" init 2>&1 | grep -q 'ignori
 printf 'scaf3\n' | "$BIN" init >/dev/null 2>&1
 [ -f scaf3/content/about.md ] && ok "EOF falls back to defaults" || bad "EOF left answers empty"
 
+group "Attribution footer"
+cd "$WORK"
+printf 'ft\nSite\nDesc\nY\nhttps://x\n\n\n1\nabout\n' | "$BIN" init >/dev/null 2>&1
+cd ft
+grep -q '^built_with  = true' config.toml && ok "init enables it by default" || bad "config key missing"
+"$BIN" build >/dev/null 2>&1
+grep -q 'Generated with atomik-ssg' public/index.html            && ok "footer on the index" || bad "index has no footer"
+grep -q 'Generated with atomik-ssg' public/posts/hello-world/index.html && ok "footer on a post"  || bad "post has no footer"
+grep -q 'Generated with atomik-ssg' public/about/index.html      && ok "footer on a page"  || bad "page has no footer"
+grep -q 'github.com/yavuzselimsahin/atomik-ssg' public/index.html && ok "footer links to the project" || bad "footer link wrong"
+# commenting the line out is the documented way to switch it off
+sed -i.bak 's|^built_with  = true|# built_with  = true|' config.toml && rm -f config.toml.bak
+"$BIN" build >/dev/null 2>&1
+grep -q 'Generated with atomik-ssg' public/index.html && bad "commenting it out had no effect" || ok "commented out removes it"
+grep -q 'site-footer:empty' public/style.css && ok "empty footer hidden by CSS" || bad "empty footer still takes space"
+cd "$WORK"
+
 group "docs theme"
 cd "$WORK"
 # the pages question must not be asked for a docs site, so no answer is given
@@ -365,6 +382,15 @@ else
     bad "phone override at line $MOBILE cannot beat the sticky rule at line $STICKY"
 fi
 grep -q 'position: static' public/style.css && ok "sidebar unsticks on a phone" || bad "sidebar stays sticky on a phone"
+# palette comes from the blog themes, so a mixed site stays one thing
+grep -q -- '--accent:   #2b6cb0' public/style.css && ok "light palette matches the default theme" || bad "light palette drifted"
+grep -q -- '--bg:      #0f1117'  public/style.css && ok "dark palette matches the dark theme"    || bad "dark palette drifted"
+# the scheme toggle
+grep -q 'class="theme-toggle"' public/guide/install/index.html && ok "scheme toggle rendered" || bad "no scheme toggle"
+grep -q "localStorage.getItem('theme')" public/guide/install/index.html && ok "stored choice applied before paint" || bad "no pre-paint script"
+grep -q "localStorage.setItem('theme'" public/guide/install/index.html && ok "choice is remembered" || bad "choice not stored"
+grep -q ':root\[data-theme="dark"\]' public/style.css && ok "explicit dark wins over the system" || bad "no explicit dark rule"
+grep -q ':root:not(\[data-theme="light"\])' public/style.css && ok "system dark still honoured" || bad "system preference dropped"
 cd "$WORK"
 
 group "Deploy safety"

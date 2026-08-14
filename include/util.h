@@ -32,6 +32,9 @@ int rfc822_date(const char *iso, char *out, size_t out_size);
 /* Wraps s in single quotes so a shell treats it as one literal argument. */
 char *shell_quote(const char *s);
 
+/* Accepts the spellings people actually write: true, yes, on, 1. */
+int is_truthy(const char *v);
+
 /* mkdir() that succeeds if the directory already exists. */
 int make_dir(const char *path);
 

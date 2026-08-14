@@ -8,6 +8,12 @@
 #include <errno.h>
 
 #ifdef _WIN32
+    #define strcasecmp _stricmp
+#else
+    #include <strings.h>
+#endif
+
+#ifdef _WIN32
     #include <direct.h>
 #else
     #include <sys/stat.h>
@@ -218,6 +224,12 @@ char *shell_quote(const char *s) {
     }
     if (sb_append(&sb, "'") != 0) { sb_free(&sb); return NULL; }
     return sb.data;
+}
+
+int is_truthy(const char *v) {
+    if (!v) return 0;
+    return strcasecmp(v, "true") == 0 || strcasecmp(v, "yes") == 0 ||
+           strcasecmp(v, "on")   == 0 || strcmp(v, "1") == 0;
 }
 
 int make_dir(const char *path) {

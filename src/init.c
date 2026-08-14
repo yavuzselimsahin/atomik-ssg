@@ -36,7 +36,12 @@
     ".post-nav a:empty { display: none; }\n" \
     ".post-nav .prev::before { content: \"\\2190  \"; }\n" \
     ".post-nav .next { margin-left: auto; text-align: right; }\n" \
-    ".post-nav .next::after { content: \"  \\2192\"; }\n"
+    ".post-nav .next::after { content: \"  \\2192\"; }\n" \
+    "/* Empty when built_with is off, and then it takes up no room. */\n" \
+    ".site-footer:empty { display: none; }\n" \
+    ".site-footer a { color: var(--muted); text-decoration: none;\n" \
+    "    border-bottom: 1px solid var(--border); }\n" \
+    ".site-footer a:hover { color: var(--accent); border-color: var(--accent); }\n"
 
 /* Starter pages offered by init. The order the user picks them in becomes the
    `order:` field, so the menu comes out in the order they asked for. */
@@ -97,10 +102,23 @@ static const struct {
     "    <title>{{title}}</title>\n" \
     "    <meta name=\"description\" content=\"{{description}}\">\n" \
     "    <link rel=\"stylesheet\" href=\"/style.css\">\n" \
+    "    <script>\n" \
+    "    /* Runs before the first paint, so a reader who chose a scheme never\n" \
+    "       sees the other one flash first. */\n" \
+    "    (function () {\n" \
+    "        var t = localStorage.getItem('theme');\n" \
+    "        if (t) document.documentElement.setAttribute('data-theme', t);\n" \
+    "    })();\n" \
+    "    </script>\n" \
     "</head>\n" \
     "<body>\n" \
     "    <header class=\"topbar\">\n" \
     "        <a class=\"brand\" href=\"/\">{{site_title}}</a>\n" \
+    "        <button class=\"theme-toggle\" type=\"button\"\n" \
+    "                aria-label=\"Switch between light and dark\">\n" \
+    "            <span class=\"in-light\">Dark</span>\n" \
+    "            <span class=\"in-dark\">Light</span>\n" \
+    "        </button>\n" \
     "    </header>\n" \
     "    <div class=\"layout\">\n" \
     "        <aside class=\"sidebar\">{{page_tree}}</aside>\n" \
@@ -111,11 +129,24 @@ static const struct {
 #define DOCS_SHELL_TAIL \
     "        </main>\n" \
     "    </div>\n" \
+    "    <footer class=\"site-footer\">{{built_with}}</footer>\n" \
     "    <script>\n" \
     "    (function () {\n" \
     "        var here = location.pathname;\n" \
     "        document.querySelectorAll('.sidebar a').forEach(function (a) {\n" \
     "            if (a.getAttribute('href') === here) a.classList.add('active');\n" \
+    "        });\n" \
+    "\n" \
+    "        var root = document.documentElement;\n" \
+    "        var button = document.querySelector('.theme-toggle');\n" \
+    "        if (button) button.addEventListener('click', function () {\n" \
+    "            /* No stored choice yet means we are following the system. */\n" \
+    "            var now = root.getAttribute('data-theme') ||\n" \
+    "                (matchMedia('(prefers-color-scheme: dark)').matches\n" \
+    "                    ? 'dark' : 'light');\n" \
+    "            var next = now === 'dark' ? 'light' : 'dark';\n" \
+    "            root.setAttribute('data-theme', next);\n" \
+    "            localStorage.setItem('theme', next);\n" \
     "        });\n" \
     "    })();\n" \
     "    </script>\n" \
@@ -164,25 +195,41 @@ static const char DOCS_POST[] =
     DOCS_SHELL_TAIL;
 
 static const char DOCS_CSS[] =
+    "/* Light is the palette of the default blog theme, dark is the palette of\n"
+    "   the dark one, so a site that mixes docs and posts stays one thing.\n"
+    "   --panel is the only addition: the docs layout has raised surfaces\n"
+    "   (hover rows, table headers, callouts) that the blog templates lack. */\n"
     ":root {\n"
     "    --bg:       #ffffff;\n"
-    "    --panel:    #f8fafc;\n"
+    "    --panel:    #f7fafc;\n"
     "    --border:   #e2e8f0;\n"
-    "    --text:     #1e293b;\n"
-    "    --muted:    #64748b;\n"
-    "    --accent:   #2563eb;\n"
-    "    --code-bg:  #f1f5f9;\n"
+    "    --text:     #1a202c;\n"
+    "    --muted:    #718096;\n"
+    "    --accent:   #2b6cb0;\n"
+    "    --code-bg:  #f7fafc;\n"
     "}\n"
+    "/* Dark applies when the system asks for it and the reader has not chosen\n"
+    "   otherwise, or when the reader chose it outright. The two blocks carry\n"
+    "   the same values; only the condition differs. */\n"
     "@media (prefers-color-scheme: dark) {\n"
-    "    :root {\n"
-    "        --bg:      #0f172a;\n"
-    "        --panel:   #131c31;\n"
-    "        --border:  #1e293b;\n"
+    "    :root:not([data-theme=\"light\"]) {\n"
+    "        --bg:      #0f1117;\n"
+    "        --panel:   #191d28;\n"
+    "        --border:  #2a2d3a;\n"
     "        --text:    #e2e8f0;\n"
-    "        --muted:   #94a3b8;\n"
+    "        --muted:   #8b98ab;\n"
     "        --accent:  #60a5fa;\n"
-    "        --code-bg: #131c31;\n"
+    "        --code-bg: #141720;\n"
     "    }\n"
+    "}\n"
+    ":root[data-theme=\"dark\"] {\n"
+    "    --bg:      #0f1117;\n"
+    "    --panel:   #191d28;\n"
+    "    --border:  #2a2d3a;\n"
+    "    --text:    #e2e8f0;\n"
+    "    --muted:   #8b98ab;\n"
+    "    --accent:  #60a5fa;\n"
+    "    --code-bg: #141720;\n"
     "}\n"
     "* { box-sizing: border-box; margin: 0; padding: 0; }\n"
     "body { background: var(--bg); color: var(--text); line-height: 1.7;\n"
@@ -190,9 +237,25 @@ static const char DOCS_CSS[] =
     "        Helvetica, Arial, sans-serif; }\n"
     "\n"
     "/* top bar */\n"
-    ".topbar { padding: 0.9rem 1.5rem; border-bottom: 1px solid var(--border);\n"
+    ".topbar { display: flex; align-items: center; justify-content: space-between;\n"
+    "    gap: 1rem; padding: 0.9rem 1.5rem;\n"
+    "    border-bottom: 1px solid var(--border);\n"
     "    position: sticky; top: 0; background: var(--bg); z-index: 10; }\n"
     ".brand { font-weight: 600; color: var(--text); text-decoration: none; }\n"
+    ".theme-toggle { font: inherit; font-size: 0.8rem; cursor: pointer;\n"
+    "    color: var(--muted); background: none; padding: 0.25rem 0.6rem;\n"
+    "    border: 1px solid var(--border); border-radius: 5px; }\n"
+    ".theme-toggle:hover { color: var(--accent); border-color: var(--accent); }\n"
+    "/* Each label shows only in the scheme it switches away from. */\n"
+    ".theme-toggle .in-dark { display: none; }\n"
+    "@media (prefers-color-scheme: dark) {\n"
+    "    :root:not([data-theme=\"light\"]) .theme-toggle .in-light { display: none; }\n"
+    "    :root:not([data-theme=\"light\"]) .theme-toggle .in-dark { display: inline; }\n"
+    "}\n"
+    ":root[data-theme=\"dark\"] .theme-toggle .in-light { display: none; }\n"
+    ":root[data-theme=\"dark\"] .theme-toggle .in-dark { display: inline; }\n"
+    ":root[data-theme=\"light\"] .theme-toggle .in-light { display: inline; }\n"
+    ":root[data-theme=\"light\"] .theme-toggle .in-dark { display: none; }\n"
     "\n"
     "/* two columns, one on a phone */\n"
     ".layout { display: grid; grid-template-columns: 240px minmax(0, 1fr);\n"
@@ -272,6 +335,12 @@ static const char DOCS_CSS[] =
     ".edit { display: inline-block; margin-top: 2rem; font-size: 0.85rem;\n"
     "    color: var(--muted); }\n"
     ".edit[href=\"\"] { display: none; }\n"
+    "\n"
+    "/* Empty when built_with is off, and then it takes up no room. */\n"
+    ".site-footer:empty { display: none; }\n"
+    ".site-footer a { color: var(--muted); text-decoration: none;\n"
+    "    border-bottom: 1px solid var(--border); }\n"
+    ".site-footer a:hover { color: var(--accent); border-color: var(--accent); }\n"
     "\n"
     "/* Phone layout. This block has to come last: it unsets the sticky\n"
     "   positioning above, and at equal specificity the later rule wins. */\n"
@@ -662,6 +731,9 @@ void cmd_init(void) {
             "base_url    = \"%s\"\n"
             "author      = \"%s\"\n"
             "theme       = \"%s\"\n\n"
+            "# A quiet line in the footer noting how the site was made.\n"
+            "# Comment it out to remove it.\n"
+            "built_with  = true\n\n"
             "[deploy]\n"
             "host = \"%s\"\n"
             "path = \"%s\"\n\n"
@@ -701,6 +773,7 @@ void cmd_init(void) {
                 "{{post_items}}\n"
                 "        </ul>\n"
                 "    </main>\n"
+                "    <footer class=\"site-footer\">{{built_with}}</footer>\n"
                 "</body>\n"
                 "</html>\n");
             fclose(f);
@@ -736,6 +809,7 @@ void cmd_init(void) {
                 "            <a class=\"next\" href=\"{{next_url}}\">{{next_title}}</a>\n"
                 "        </nav>\n"
                 "    </main>\n"
+                "    <footer class=\"site-footer\">{{built_with}}</footer>\n"
                 "</body>\n"
                 "</html>\n");
             fclose(f);
@@ -766,6 +840,7 @@ void cmd_init(void) {
                 "            {{content}}\n"
                 "        </article>\n"
                 "    </main>\n"
+                "    <footer class=\"site-footer\">{{built_with}}</footer>\n"
                 "</body>\n"
                 "</html>\n");
             fclose(f);

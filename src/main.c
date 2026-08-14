@@ -25,6 +25,7 @@ int     g_include_drafts               = 0;
 const char *g_nav_html                 = "";
 const char *g_tree_html                = "";
 char    g_edit_url[512]                = "";
+char    g_built_with[256]              = "";
 
 #define DEFAULT_PORT 4545
 
@@ -68,6 +69,12 @@ static void load_config(int quiet) {
              toml_get_or(&g_toml, "", "edit_url", ""));
     size_t elen = strlen(g_edit_url);
     while (elen > 0 && g_edit_url[elen - 1] == '/') g_edit_url[--elen] = '\0';
+
+    /* Absent means off, so commenting the line out is enough to remove it. */
+    if (is_truthy(toml_get(&g_toml, "", "built_with")))
+        snprintf(g_built_with, sizeof(g_built_with),
+                 "<a href=\"https://github.com/yavuzselimsahin/atomik-ssg\">"
+                 "Generated with atomik-ssg</a>");
 }
 
 /* Removes flag from argv if present, so the positional arguments stay simple. */

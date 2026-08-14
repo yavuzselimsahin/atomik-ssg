@@ -207,6 +207,7 @@ description = "About my work"
 base_url    = "https://example.com"
 author      = "Your Name"
 theme       = "default"
+built_with  = true
 
 [build]
 output_dir = "public"
@@ -219,9 +220,17 @@ host = "user@vps"
 path = "/var/www/myblog"
 ```
 
-`slug` and `date` are optional in a post: if either is missing it is derived
-from the file name (`2026-08-10-my-first-post.md`). Posts are listed newest
-first on the index and in the feed.
+Two optional keys are worth calling out:
+
+- **`edit_url`** — a base URL that a page's source path is appended to, which
+  is how a theme offers "Edit this page". Unset, and the themes hide the link
+  rather than showing a dead one.
+- **`built_with`** — puts a quiet "Generated with atomik-ssg" line in the
+  footer of every page, linked to the project. `init` writes it enabled;
+  comment the line out to remove it. An absent key counts as off.
+
+Remember that a top-level key has to appear *before* the first `[section]`
+header, or it lands inside whichever section came last.
 
 ## Post Format
 
@@ -259,6 +268,7 @@ atomik-ssg build --drafts
 | `{{page_tree}}` | all | the whole page hierarchy, as a nested `<ul>` |
 | `{{source_path}}` | post, page | the markdown file it was built from |
 | `{{edit_url}}` | post, page | `edit_url` joined with the source path |
+| `{{built_with}}` | all | the attribution link, or empty when `built_with` is off |
 | `{{prev_url}}` `{{prev_title}}` | post, page | previous in reading order, empty at the start |
 | `{{next_url}}` `{{next_title}}` | post, page | next in reading order, empty at the end |
 

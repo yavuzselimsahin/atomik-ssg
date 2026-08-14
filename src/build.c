@@ -81,6 +81,7 @@ static int write_index(int listed, const char *items) {
         { "post_items",       items,              1 },
         { "pages",            g_nav_html,         1 },
         { "page_tree",        g_tree_html,        1 },
+        { "built_with",       g_built_with,       1 },
     };
 
     char *output = render_template(tmpl, vars, (int)(sizeof(vars) / sizeof(vars[0])));

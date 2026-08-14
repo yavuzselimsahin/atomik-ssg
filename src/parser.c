@@ -15,12 +15,6 @@
 
 #define COPY_MAX_DEPTH 32
 
-/* Accepts the spellings people actually write in frontmatter. */
-static int is_truthy(const char *v) {
-    return strcasecmp(v, "true") == 0 || strcasecmp(v, "yes") == 0 ||
-           strcasecmp(v, "on")   == 0 || strcmp(v, "1") == 0;
-}
-
 int parse_frontmatter(char *raw, Post *post) {
     if (!raw || strncmp(raw, "---", 3) != 0) return -1;
     char *ptr = raw + 3;
