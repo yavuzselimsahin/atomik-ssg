@@ -355,6 +355,16 @@ grep -q 'class="edit" href="https://example.com/edit/main/content/guide/install.
 grep -q 'a.edit\[href=""\]' public/style.css || grep -q '.edit\[href=""\]' public/style.css \
     && ok "empty edit link hidden by CSS" || bad "no rule hiding an unset edit link"
 grep -q 'prefers-color-scheme' public/style.css && ok "docs theme follows the system palette" || bad "no dark mode"
+# the phone override unsets the sticky sidebar, so at equal specificity it has
+# to come later in the file or the sidebar keeps overlapping the content
+STICKY=$(grep -n '^\.sidebar { position: sticky' public/style.css | cut -d: -f1)
+MOBILE=$(grep -n '@media (max-width: 800px)' public/style.css | cut -d: -f1)
+if [ -n "$STICKY" ] && [ -n "$MOBILE" ] && [ "$MOBILE" -gt "$STICKY" ]; then
+    ok "phone override comes after the sticky sidebar rule"
+else
+    bad "phone override at line $MOBILE cannot beat the sticky rule at line $STICKY"
+fi
+grep -q 'position: static' public/style.css && ok "sidebar unsticks on a phone" || bad "sidebar stays sticky on a phone"
 cd "$WORK"
 
 group "Deploy safety"

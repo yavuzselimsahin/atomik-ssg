@@ -197,11 +197,6 @@ static const char DOCS_CSS[] =
     "/* two columns, one on a phone */\n"
     ".layout { display: grid; grid-template-columns: 240px minmax(0, 1fr);\n"
     "    gap: 3rem; max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }\n"
-    "@media (max-width: 800px) {\n"
-    "    .layout { grid-template-columns: 1fr; gap: 1.5rem; }\n"
-    "    .sidebar { position: static; max-height: none;\n"
-    "        border-bottom: 1px solid var(--border); padding-bottom: 1rem; }\n"
-    "}\n"
     "\n"
     "/* sidebar */\n"
     ".sidebar { position: sticky; top: 4.5rem; align-self: start;\n"
@@ -276,7 +271,21 @@ static const char DOCS_CSS[] =
     "/* empty when config.toml sets no edit_url */\n"
     ".edit { display: inline-block; margin-top: 2rem; font-size: 0.85rem;\n"
     "    color: var(--muted); }\n"
-    ".edit[href=\"\"] { display: none; }\n";
+    ".edit[href=\"\"] { display: none; }\n"
+    "\n"
+    "/* Phone layout. This block has to come last: it unsets the sticky\n"
+    "   positioning above, and at equal specificity the later rule wins. */\n"
+    "@media (max-width: 800px) {\n"
+    "    .layout { grid-template-columns: 1fr; gap: 1.5rem; padding-top: 1.5rem; }\n"
+    "    .sidebar { position: static; max-height: none; overflow: visible;\n"
+    "        border-bottom: 1px solid var(--border);\n"
+    "        padding-bottom: 1.2rem; margin-bottom: 0.5rem; }\n"
+    "    .sidebar > ul > li { margin-bottom: 0.9rem; }\n"
+    "    article h1 { font-size: 1.6rem; }\n"
+    "    .post-nav { flex-direction: column; }\n"
+    "    .post-nav a { max-width: none; }\n"
+    "    .post-nav .next { margin-left: 0; }\n"
+    "}\n";
 
 /* Starter documentation. It is written for the person who just ran init, and
    it doubles as a worked example of sections, ordering and index.md. Note the
