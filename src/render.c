@@ -77,6 +77,11 @@ int render_entry(const char *tmpl, const Post *post,
     if (next) snprintf(next_url, sizeof(next_url), "%s/%s%s%s/",
                        g_base_path, subdir, *subdir ? "/" : "", next->slug);
 
+    char *called = mark_callouts(html);
+    if (!called) { free(html); return -1; }
+    free(html);
+    html = called;
+
     /* Links the author wrote in markdown are root-absolute too, so they need
        the same prefix as the ones this program generates. */
     if (g_base_path[0]) {
@@ -106,6 +111,7 @@ int render_entry(const char *tmpl, const Post *post,
         { "edit_url",          edit_url,                  0 },
         { "built_with",        g_built_with,              1 },
         { "base_path",         g_base_path,               0 },
+        { "version",           g_version,                 0 },
         { "prev_url",          prev_url,                  0 },
         { "prev_title",        prev ? prev->title : "",   0 },
         { "next_url",          next_url,                  0 },

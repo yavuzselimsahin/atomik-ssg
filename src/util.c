@@ -226,6 +226,57 @@ char *shell_quote(const char *s) {
     return sb.data;
 }
 
+static const char *CALLOUT_KINDS[] = {
+    "NOTE", "TIP", "IMPORTANT", "WARNING", "CAUTION", NULL
+};
+
+char *mark_callouts(const char *html) {
+    static const char OPEN[] = "<blockquote>\n<p>[!";
+    const size_t      OPEN_LEN = sizeof(OPEN) - 1;
+
+    StrBuf sb;
+    sb_init(&sb);
+    if (!html) html = "";
+
+    for (const char *p = html; *p; ) {
+        if (strncmp(p, OPEN, OPEN_LEN) == 0) {
+            const char *kind = p + OPEN_LEN;
+            const char *end  = strchr(kind, ']');
+
+            if (end && (size_t)(end - kind) < 16) {
+                char name[16];
+                size_t n = (size_t)(end - kind);
+                memcpy(name, kind, n);
+                name[n] = '\0';
+
+                int known = 0;
+                for (int i = 0; CALLOUT_KINDS[i]; i++)
+                    if (strcmp(name, CALLOUT_KINDS[i]) == 0) known = 1;
+
+                if (known) {
+                    for (size_t i = 0; i < n; i++)
+                        name[i] = (char)tolower((unsigned char)name[i]);
+
+                    if (sb_appendf(&sb, "<blockquote class=\"callout callout-%s\">\n<p>",
+                                   name) != 0) { sb_free(&sb); return NULL; }
+
+                    p = end + 1;
+                    /* The marker sat either on its own line or on the first
+                       line of the text; both leave something to step over. */
+                    if      (strncmp(p, "</p>\n<p>", 8) == 0) p += 8;
+                    else if (*p == '\n')                      p += 1;
+                    continue;
+                }
+            }
+        }
+        if (sb_append_n(&sb, p, 1) != 0) { sb_free(&sb); return NULL; }
+        p++;
+    }
+
+    if (!sb.data && sb_append_n(&sb, "", 0) != 0) return NULL;
+    return sb.data;
+}
+
 char *prefix_links(const char *html, const char *prefix) {
     StrBuf sb;
     sb_init(&sb);

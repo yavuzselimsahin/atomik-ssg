@@ -27,6 +27,7 @@ const char *g_tree_html                = "";
 char    g_edit_url[512]                = "";
 char    g_built_with[256]              = "";
 char    g_base_path[256]               = "";
+char    g_version[64]                  = "";
 
 #define DEFAULT_PORT 4545
 
@@ -70,6 +71,9 @@ static void load_config(int quiet) {
              toml_get_or(&g_toml, "", "edit_url", ""));
     size_t elen = strlen(g_edit_url);
     while (elen > 0 && g_edit_url[elen - 1] == '/') g_edit_url[--elen] = '\0';
+
+    snprintf(g_version, sizeof(g_version), "%s",
+             toml_get_or(&g_toml, "", "version", ""));
 
     /* Normalised to "" or "/prefix": a leading slash, never a trailing one,
        so every call site can join it without thinking about separators. */

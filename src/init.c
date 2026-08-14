@@ -37,6 +37,20 @@
     ".post-nav .prev::before { content: \"\\2190  \"; }\n" \
     ".post-nav .next { margin-left: auto; text-align: right; }\n" \
     ".post-nav .next::after { content: \"  \\2192\"; }\n" \
+    "/* The label is CSS, not markup, so a theme decides how it reads. */\n" \
+    ".callout { border-left: 3px solid var(--accent);\n" \
+    "    background: var(--code-bg); padding: 0.8rem 1rem;\n" \
+    "    margin: 1.5rem 0; }\n" \
+    ".callout::before { display: block; font-size: 0.72rem;\n" \
+    "    font-weight: 700; text-transform: uppercase;\n" \
+    "    letter-spacing: 0.06em; margin-bottom: 0.3rem;\n" \
+    "    color: var(--accent); }\n" \
+    ".callout > :last-child { margin-bottom: 0; }\n" \
+    ".callout-note::before { content: \"Note\"; }\n" \
+    ".callout-tip::before { content: \"Tip\"; }\n" \
+    ".callout-important::before { content: \"Important\"; }\n" \
+    ".callout-warning::before { content: \"Warning\"; }\n" \
+    ".callout-caution::before { content: \"Caution\"; }\n" \
     "/* Empty when built_with is off, and then it takes up no room. */\n" \
     ".site-footer { margin-top: 3rem; padding-top: 1.1rem;\n" \
     "    border-top: 1px solid var(--border); font-size: 0.78rem;\n" \
@@ -116,6 +130,7 @@ static const struct {
     "<body>\n" \
     "    <header class=\"topbar\">\n" \
     "        <a class=\"brand\" href=\"{{base_path}}/\">{{site_title}}</a>\n" \
+    "        <span class=\"version\">{{version}}</span>\n" \
     "        <button class=\"theme-toggle\" type=\"button\"\n" \
     "                aria-label=\"Switch between light and dark\">\n" \
     "            <span class=\"in-light\">Dark</span>\n" \
@@ -211,6 +226,11 @@ static const char DOCS_CSS[] =
     "    --muted:    #718096;\n"
     "    --accent:   #2b6cb0;\n"
     "    --code-bg:  #f7fafc;\n"
+    "    --cal-note:      #2b6cb0;\n"
+    "    --cal-tip:       #276749;\n"
+    "    --cal-important: #553c9a;\n"
+    "    --cal-warning:   #975a16;\n"
+    "    --cal-caution:   #9b2c2c;\n"
     "}\n"
     "/* Dark applies when the system asks for it and the reader has not chosen\n"
     "   otherwise, or when the reader chose it outright. The two blocks carry\n"
@@ -224,6 +244,11 @@ static const char DOCS_CSS[] =
     "        --muted:   #8b98ab;\n"
     "        --accent:  #60a5fa;\n"
     "        --code-bg: #141720;\n"
+    "        --cal-note:      #63b3ed;\n"
+    "        --cal-tip:       #68d391;\n"
+    "        --cal-important: #b794f4;\n"
+    "        --cal-warning:   #f6ad55;\n"
+    "        --cal-caution:   #fc8181;\n"
     "    }\n"
     "}\n"
     ":root[data-theme=\"dark\"] {\n"
@@ -234,6 +259,11 @@ static const char DOCS_CSS[] =
     "    --muted:   #8b98ab;\n"
     "    --accent:  #60a5fa;\n"
     "    --code-bg: #141720;\n"
+    "    --cal-note:      #63b3ed;\n"
+    "    --cal-tip:       #68d391;\n"
+    "    --cal-important: #b794f4;\n"
+    "    --cal-warning:   #f6ad55;\n"
+    "    --cal-caution:   #fc8181;\n"
     "}\n"
     "* { box-sizing: border-box; margin: 0; padding: 0; }\n"
     "body { background: var(--bg); color: var(--text); line-height: 1.7;\n"
@@ -246,6 +276,11 @@ static const char DOCS_CSS[] =
     "    border-bottom: 1px solid var(--border);\n"
     "    position: sticky; top: 0; background: var(--bg); z-index: 10; }\n"
     ".brand { font-weight: 600; color: var(--text); text-decoration: none; }\n"
+    "/* Empty when config.toml sets no version, and then it is not there. */\n"
+    ".version { margin-right: auto; font-size: 0.72rem; color: var(--muted);\n"
+    "    padding: 0.05rem 0.5rem; border: 1px solid var(--border);\n"
+    "    border-radius: 999px; }\n"
+    ".version:empty { display: none; }\n"
     ".theme-toggle { font: inherit; font-size: 0.8rem; cursor: pointer;\n"
     "    color: var(--muted); background: none; padding: 0.25rem 0.6rem;\n"
     "    border: 1px solid var(--border); border-radius: 5px; }\n"
@@ -347,6 +382,25 @@ static const char DOCS_CSS[] =
     ".edit { display: inline-block; margin-top: 2rem; font-size: 0.85rem;\n"
     "    color: var(--muted); }\n"
     ".edit[href=\"\"] { display: none; }\n"
+    "\n"
+    "/* Callouts. The label is CSS, not markup. */\n"
+    ".callout { border-left: 3px solid var(--border);\n"
+    "    background: var(--panel); padding: 0.9rem 1rem;\n"
+    "    margin-bottom: 1.2rem; border-radius: 0 5px 5px 0; }\n"
+    ".callout::before { display: block; font-size: 0.72rem;\n"
+    "    font-weight: 700; text-transform: uppercase;\n"
+    "    letter-spacing: 0.06em; margin-bottom: 0.35rem; }\n"
+    ".callout > :last-child { margin-bottom: 0; }\n"
+    ".callout-note { border-left-color: var(--cal-note); }\n"
+    ".callout-note::before { content: \"Note\"; color: var(--cal-note); }\n"
+    ".callout-tip { border-left-color: var(--cal-tip); }\n"
+    ".callout-tip::before { content: \"Tip\"; color: var(--cal-tip); }\n"
+    ".callout-important { border-left-color: var(--cal-important); }\n"
+    ".callout-important::before { content: \"Important\"; color: var(--cal-important); }\n"
+    ".callout-warning { border-left-color: var(--cal-warning); }\n"
+    ".callout-warning::before { content: \"Warning\"; color: var(--cal-warning); }\n"
+    ".callout-caution { border-left-color: var(--cal-caution); }\n"
+    ".callout-caution::before { content: \"Caution\"; color: var(--cal-caution); }\n"
     "\n"
     "/* Pinned to the foot of the sidebar, outside the part that scrolls.\n"
     "   No rule above it: in a column this narrow the gap says enough.\n"
@@ -748,6 +802,9 @@ void cmd_init(void) {
             "base_url    = \"%s\"\n"
             "author      = \"%s\"\n"
             "theme       = \"%s\"\n\n"
+            "# Shown by the docs theme so a reader can tell which release this\n"
+            "# documents. Leave it out and nothing is displayed.\n"
+            "# version = \"1.0.0\"\n\n"
             "# Serving the site from a subdirectory rather than a domain root?\n"
             "# Set it here and every generated link is prefixed to match.\n"
             "# base_path = \"/my-project\"\n\n"

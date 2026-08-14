@@ -32,6 +32,16 @@ int rfc822_date(const char *iso, char *out, size_t out_size);
 /* Wraps s in single quotes so a shell treats it as one literal argument. */
 char *shell_quote(const char *s);
 
+/* Turns GitHub's alert syntax into a classed blockquote:
+
+       > [!WARNING]              <blockquote class="callout callout-warning">
+       > mind this        ->     <p>mind this</p></blockquote>
+
+   The label itself comes from CSS, so a theme decides how it reads. Only the
+   five known kinds are touched; anything else stays an ordinary quote.
+   Caller frees. */
+char *mark_callouts(const char *html);
+
 /* Returns a copy of html with prefix inserted in front of every root-absolute
    href/src. Protocol-relative "//host" URLs are left alone. Caller frees. */
 char *prefix_links(const char *html, const char *prefix);

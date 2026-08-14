@@ -189,6 +189,24 @@ know is which page it ended up on. Five lines of JavaScript at the end of the
 template mark the current entry — no per-page rebuild, no template
 conditionals.
 
+### Keeping several versions
+
+A version of the documentation is just a separate build in a separate
+directory, which is what `base_path` already makes possible. Nothing in the
+generator manages versions, because git already stores them:
+
+```bash
+git checkout v1.0.0
+atomik-ssg build            # base_path = "/v1.0.0", output_dir = "site/v1.0.0"
+git checkout main
+atomik-ssg build            # base_path = "",        output_dir = "site"
+```
+
+Set `version` in each one and the theme shows which release the reader is on.
+A switcher between versions is a few lines of markup in the theme, added when
+you cut a release — deliberately not a feature of the binary, because version
+management is where documentation tools get big.
+
 ### Markdown support
 
 The bundled parser is [cmark](https://github.com/commonmark/cmark), which
@@ -198,6 +216,28 @@ anything the syntax does not cover can be written by hand.
 GitHub's extensions are **not** part of CommonMark and are therefore not
 available: pipe tables, `~~strikethrough~~`, bare-URL autolinks and task lists
 all render as literal text. Write a table as HTML if you need one.
+
+### Callouts
+
+GitHub's alert syntax is recognised, which CommonMark leaves as an ordinary
+quote and GitHub itself handles outside the parser:
+
+```markdown
+> [!WARNING]
+> `--delete` removes remote files that are not in your output.
+```
+
+`NOTE`, `TIP`, `IMPORTANT`, `WARNING` and `CAUTION` become
+`<blockquote class="callout callout-warning">`, with the marker dropped from
+the text. Anything else stays an ordinary quote, so a typo is visible rather
+than swallowed.
+
+The label is drawn by the theme's CSS rather than written into the HTML, so
+renaming or translating it is a stylesheet edit:
+
+```css
+.callout-warning::before { content: "Dikkat"; }
+```
 
 ## Configuration
 
@@ -225,6 +265,8 @@ Two optional keys are worth calling out:
 - **`edit_url`** — a base URL that a page's source path is appended to, which
   is how a theme offers "Edit this page". Unset, and the themes hide the link
   rather than showing a dead one.
+- **`version`** — the release this documentation describes. The docs theme
+  shows it beside the site name; unset, nothing is displayed.
 - **`base_path`** — the subdirectory the finished site is served from, such
   as `/my-project` on GitHub project pages. Every generated link is prefixed
   with it, including the root-absolute links you write in markdown, and
@@ -276,6 +318,7 @@ atomik-ssg build --drafts
 | `{{edit_url}}` | post, page | `edit_url` joined with the source path |
 | `{{built_with}}` | all | the attribution link, or empty when `built_with` is off |
 | `{{base_path}}` | all | `base_path` from the config; empty at a domain root |
+| `{{version}}` | all | `version` from the config; empty when unset |
 | `{{prev_url}}` `{{prev_title}}` | post, page | previous in reading order, empty at the start |
 | `{{next_url}}` `{{next_title}}` | post, page | next in reading order, empty at the end |
 

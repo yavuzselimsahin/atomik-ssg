@@ -20,6 +20,10 @@ extern const char *g_nav_html;
 /* The nested <ul> of the whole page hierarchy, available as {{page_tree}}. */
 extern const char *g_tree_html;
 
+/* config.toml `version`: shown by a theme so a reader can tell which release
+   they are reading about. Empty when unset. */
+extern char g_version[64];
+
 /* config.toml `base_path`: the subdirectory the finished site is served
    from, normalised to "" or "/prefix". Every generated link is prefixed with
    it, and templates get it as {{base_path}}. */

@@ -373,6 +373,17 @@ grep -q 'class="edit" href="https://example.com/edit/main/content/guide/install.
 grep -q 'a.edit\[href=""\]' public/style.css || grep -q '.edit\[href=""\]' public/style.css \
     && ok "empty edit link hidden by CSS" || bad "no rule hiding an unset edit link"
 grep -q 'prefers-color-scheme' public/style.css && ok "docs theme follows the system palette" || bad "no dark mode"
+# the version badge: present when set, gone when not
+printf 'version = "9.9.9"\n' > c.tmp && cat config.toml >> c.tmp && mv c.tmp config.toml
+"$BIN" build >/dev/null 2>&1
+grep -q '<span class="version">9.9.9</span>' public/guide/install/index.html \
+    && ok "version shown when set" || bad "version not shown"
+grep -v '^version' config.toml > c.tmp && mv c.tmp config.toml
+"$BIN" build >/dev/null 2>&1
+grep -q '<span class="version"></span>' public/guide/install/index.html \
+    && ok "version empty when unset" || bad "version left over"
+grep -q '\.version:empty' public/style.css \
+    && ok "empty version badge hidden by CSS" || bad "empty badge still takes space"
 # the attribution belongs at the foot of the sidebar, outside the part that
 # scrolls, so it can be read without scrolling an article to the end
 python3 - <<'EOF' && ok "docs footer pinned under the sidebar" || bad "docs footer is not in the sidebar"
@@ -412,6 +423,54 @@ grep -q "localStorage.getItem('theme')" public/guide/install/index.html && ok "s
 grep -q "localStorage.setItem('theme'" public/guide/install/index.html && ok "choice is remembered" || bad "choice not stored"
 grep -q ':root\[data-theme="dark"\]' public/style.css && ok "explicit dark wins over the system" || bad "no explicit dark rule"
 grep -q ':root:not(\[data-theme="light"\])' public/style.css && ok "system dark still honoured" || bad "system preference dropped"
+cd "$WORK"
+
+group "Callouts"
+cd "$WORK"
+printf 'cal\nS\nD\nY\nhttps://x\n\n\n4\n' | "$BIN" init >/dev/null 2>&1
+cd cal
+cat > content/c.md <<'EOF'
+---
+title: C
+order: 9
+---
+
+> [!NOTE]
+> One line.
+
+> [!WARNING]
+>
+> Blank line after the marker.
+
+> [!TIP]
+> First.
+>
+> Second paragraph.
+
+> An ordinary quote.
+
+> [!NOPE]
+> Not a known kind.
+EOF
+"$BIN" build >/dev/null 2>&1
+C=public/c/index.html
+check "every known kind is classed" "$(grep -c 'class="callout callout-' $C)" "3"
+grep -q 'callout-note' $C    && ok "marker on the same line"        || bad "same-line form missed"
+grep -q 'callout-warning' $C && ok "marker on its own line"         || bad "own-line form missed"
+grep -q 'callout-tip' $C     && ok "several paragraphs kept"        || bad "multi-paragraph form missed"
+grep -q '\[!NOTE\]' $C     && bad "marker left in the output"     || ok "marker removed from the text"
+grep -q '<p></p>' $C         && bad "empty paragraph left behind"   || ok "no empty paragraph"
+grep -q 'Second paragraph'   $C && ok "later paragraphs survive"    || bad "paragraphs lost"
+grep -q '<blockquote>\n\?<p>An ordinary' $C || grep -q 'An ordinary quote' $C
+grep -q 'class="callout" *>*<p>An ordinary' $C && bad "plain quote was converted" || ok "plain quote untouched"
+grep -q '\[!NOPE\]' $C     && ok "unknown kind left alone"        || bad "unknown kind swallowed"
+# the label lives in CSS, so it must exist for every kind
+check "a label for each kind" "$(grep -c 'callout-[a-z]*::before' public/style.css)" "5"
+grep -q -- '--cal-caution' public/style.css && ok "callouts have their own colours" || bad "no callout palette"
+# a code fence must never be mistaken for a callout
+printf -- "---\ntitle: F\norder: 8\n---\n\n\`\`\`\n> [!NOTE]\n\`\`\`\n" > content/f.md
+"$BIN" build >/dev/null 2>&1
+grep -q 'callout' public/f/index.html && bad "code fence converted" || ok "code fence untouched"
 cd "$WORK"
 
 group "base_path"
