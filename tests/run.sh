@@ -327,6 +327,7 @@ sed -i.bak 's|^built_with  = true|# built_with  = true|' config.toml && rm -f co
 "$BIN" build >/dev/null 2>&1
 grep -q 'Generated with atomik-ssg' public/index.html && bad "commenting it out had no effect" || ok "commented out removes it"
 grep -q 'site-footer:empty' public/style.css && ok "empty footer hidden by CSS" || bad "empty footer still takes space"
+grep -q '^\.site-footer { margin-top' public/style.css && ok "footer has its own spacing and rule" || bad "footer base rule missing"
 cd "$WORK"
 
 group "docs theme"
@@ -372,6 +373,26 @@ grep -q 'class="edit" href="https://example.com/edit/main/content/guide/install.
 grep -q 'a.edit\[href=""\]' public/style.css || grep -q '.edit\[href=""\]' public/style.css \
     && ok "empty edit link hidden by CSS" || bad "no rule hiding an unset edit link"
 grep -q 'prefers-color-scheme' public/style.css && ok "docs theme follows the system palette" || bad "no dark mode"
+# the attribution belongs at the foot of the sidebar, outside the part that
+# scrolls, so it can be read without scrolling an article to the end
+python3 - <<'EOF' && ok "docs footer pinned under the sidebar" || bad "docs footer is not in the sidebar"
+import re, sys
+h = open('public/guide/install/index.html').read()
+aside = re.search(r'<aside class="sidebar">.*?</aside>', h, re.S)
+main  = re.search(r'<main>.*?</main>', h, re.S)
+sys.exit(0 if aside and 'site-footer' in aside.group(0)
+              and main and 'site-footer' not in main.group(0) else 1)
+EOF
+grep -q '\.sidebar > ul { overflow-y: auto' public/style.css \
+    && ok "the tree scrolls, not the whole sidebar" || bad "sidebar scrolls as one piece"
+grep -q '\.site-footer { flex-shrink: 0' public/style.css \
+    && ok "footer holds its height" || bad "footer can be squeezed away"
+# the attribution is a link, not another row of navigation, so the tree's
+# block styling must not reach it
+grep -q '^\.sidebar > ul a, \.sidebar > ul span' public/style.css \
+    && ok "tree styling scoped away from the footer" || bad "sidebar rules still catch the footer link"
+grep -q "querySelectorAll('\.sidebar > ul a')" public/guide/install/index.html \
+    && ok "active-page script looks at the tree only" || bad "script scans the whole sidebar"
 # the phone override unsets the sticky sidebar, so at equal specificity it has
 # to come later in the file or the sidebar keeps overlapping the content
 STICKY=$(grep -n '^\.sidebar { position: sticky' public/style.css | cut -d: -f1)

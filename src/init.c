@@ -38,10 +38,12 @@
     ".post-nav .next { margin-left: auto; text-align: right; }\n" \
     ".post-nav .next::after { content: \"  \\2192\"; }\n" \
     "/* Empty when built_with is off, and then it takes up no room. */\n" \
+    ".site-footer { margin-top: 3rem; padding-top: 1.1rem;\n" \
+    "    border-top: 1px solid var(--border); font-size: 0.78rem;\n" \
+    "    line-height: 1.5; letter-spacing: 0.01em; color: var(--muted); }\n" \
     ".site-footer:empty { display: none; }\n" \
-    ".site-footer a { color: var(--muted); text-decoration: none;\n" \
-    "    border-bottom: 1px solid var(--border); }\n" \
-    ".site-footer a:hover { color: var(--accent); border-color: var(--accent); }\n"
+    ".site-footer a { color: var(--muted); text-decoration: none; }\n" \
+    ".site-footer a:hover { color: var(--accent); }\n"
 
 /* Starter pages offered by init. The order the user picks them in becomes the
    `order:` field, so the menu comes out in the order they asked for. */
@@ -121,7 +123,10 @@ static const struct {
     "        </button>\n" \
     "    </header>\n" \
     "    <div class=\"layout\">\n" \
-    "        <aside class=\"sidebar\">{{page_tree}}</aside>\n" \
+    "        <aside class=\"sidebar\">\n" \
+    "            {{page_tree}}\n" \
+    "            <footer class=\"site-footer\">{{built_with}}</footer>\n" \
+    "        </aside>\n" \
     "        <main>\n"
 
 /* Marks the entry the reader is on. The tree is built once for the whole site,
@@ -129,11 +134,10 @@ static const struct {
 #define DOCS_SHELL_TAIL \
     "        </main>\n" \
     "    </div>\n" \
-    "    <footer class=\"site-footer\">{{built_with}}</footer>\n" \
     "    <script>\n" \
     "    (function () {\n" \
     "        var here = location.pathname;\n" \
-    "        document.querySelectorAll('.sidebar a').forEach(function (a) {\n" \
+    "        document.querySelectorAll('.sidebar > ul a').forEach(function (a) {\n" \
     "            if (a.getAttribute('href') === here) a.classList.add('active');\n" \
     "        });\n" \
     "\n" \
@@ -262,19 +266,27 @@ static const char DOCS_CSS[] =
     "    gap: 3rem; max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }\n"
     "\n"
     "/* sidebar */\n"
+    "/* Two parts: the tree takes the height that is going and scrolls, the\n"
+    "   footer under it stays where it is. Reading the attribution should not\n"
+    "   mean scrolling an article to the end. */\n"
     ".sidebar { position: sticky; top: 4.5rem; align-self: start;\n"
-    "    max-height: calc(100vh - 6rem); overflow-y: auto; font-size: 0.9rem; }\n"
+    "    max-height: calc(100vh - 6rem); font-size: 0.9rem;\n"
+    "    display: flex; flex-direction: column; }\n"
+    ".sidebar > ul { overflow-y: auto; flex: 1; min-height: 0; }\n"
     ".sidebar ul { list-style: none; }\n"
     ".sidebar > ul > li { margin-bottom: 1.2rem; }\n"
     ".sidebar ul ul { margin: 0.3rem 0 0 0; padding-left: 0.8rem;\n"
     "    border-left: 1px solid var(--border); }\n"
     ".sidebar ul ul li { margin: 0.15rem 0; }\n"
-    ".sidebar a, .sidebar span { display: block; padding: 0.2rem 0.5rem;\n"
-    "    border-radius: 4px; text-decoration: none; color: var(--muted); }\n"
+    "/* Scoped to the tree: the attribution below it is an ordinary link, not\n"
+    "   another row in the navigation. */\n"
+    ".sidebar > ul a, .sidebar > ul span { display: block;\n"
+    "    padding: 0.2rem 0.5rem; border-radius: 4px;\n"
+    "    text-decoration: none; color: var(--muted); }\n"
     ".sidebar > ul > li > a, .sidebar > ul > li > span {\n"
     "    color: var(--text); font-weight: 600; }\n"
-    ".sidebar a:hover { background: var(--panel); color: var(--accent); }\n"
-    ".sidebar a.active { background: var(--panel); color: var(--accent);\n"
+    ".sidebar > ul a:hover { background: var(--panel); color: var(--accent); }\n"
+    ".sidebar > ul a.active { background: var(--panel); color: var(--accent);\n"
     "    font-weight: 600; }\n"
     "\n"
     "/* content */\n"
@@ -336,11 +348,14 @@ static const char DOCS_CSS[] =
     "    color: var(--muted); }\n"
     ".edit[href=\"\"] { display: none; }\n"
     "\n"
-    "/* Empty when built_with is off, and then it takes up no room. */\n"
+    "/* Pinned to the foot of the sidebar, outside the part that scrolls.\n"
+    "   No rule above it: in a column this narrow the gap says enough.\n"
+    "   Empty when built_with is off, and then it takes no room. */\n"
+    ".site-footer { flex-shrink: 0; margin-top: 1.4rem; font-size: 0.75rem;\n"
+    "    line-height: 1.4; letter-spacing: 0.01em; color: var(--muted); }\n"
     ".site-footer:empty { display: none; }\n"
-    ".site-footer a { color: var(--muted); text-decoration: none;\n"
-    "    border-bottom: 1px solid var(--border); }\n"
-    ".site-footer a:hover { color: var(--accent); border-color: var(--accent); }\n"
+    ".site-footer a { color: var(--muted); text-decoration: none; }\n"
+    ".site-footer a:hover { color: var(--accent); }\n"
     "\n"
     "/* Phone layout. This block has to come last: it unsets the sticky\n"
     "   positioning above, and at equal specificity the later rule wins. */\n"
@@ -349,7 +364,9 @@ static const char DOCS_CSS[] =
     "    .sidebar { position: static; max-height: none; overflow: visible;\n"
     "        border-bottom: 1px solid var(--border);\n"
     "        padding-bottom: 1.2rem; margin-bottom: 0.5rem; }\n"
+    "    .sidebar > ul { overflow: visible; }\n"
     "    .sidebar > ul > li { margin-bottom: 0.9rem; }\n"
+    "    .site-footer { margin-top: 0.9rem; }\n"
     "    article h1 { font-size: 1.6rem; }\n"
     "    .post-nav { flex-direction: column; }\n"
     "    .post-nav a { max-width: none; }\n"
