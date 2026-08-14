@@ -103,7 +103,7 @@ static const struct {
     "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n" \
     "    <title>{{title}}</title>\n" \
     "    <meta name=\"description\" content=\"{{description}}\">\n" \
-    "    <link rel=\"stylesheet\" href=\"/style.css\">\n" \
+    "    <link rel=\"stylesheet\" href=\"{{base_path}}/style.css\">\n" \
     "    <script>\n" \
     "    /* Runs before the first paint, so a reader who chose a scheme never\n" \
     "       sees the other one flash first. */\n" \
@@ -115,7 +115,7 @@ static const struct {
     "</head>\n" \
     "<body>\n" \
     "    <header class=\"topbar\">\n" \
-    "        <a class=\"brand\" href=\"/\">{{site_title}}</a>\n" \
+    "        <a class=\"brand\" href=\"{{base_path}}/\">{{site_title}}</a>\n" \
     "        <button class=\"theme-toggle\" type=\"button\"\n" \
     "                aria-label=\"Switch between light and dark\">\n" \
     "            <span class=\"in-light\">Dark</span>\n" \
@@ -748,6 +748,9 @@ void cmd_init(void) {
             "base_url    = \"%s\"\n"
             "author      = \"%s\"\n"
             "theme       = \"%s\"\n\n"
+            "# Serving the site from a subdirectory rather than a domain root?\n"
+            "# Set it here and every generated link is prefixed to match.\n"
+            "# base_path = \"/my-project\"\n\n"
             "# A quiet line in the footer noting how the site was made.\n"
             "# Comment it out to remove it.\n"
             "built_with  = true\n\n"
@@ -777,7 +780,7 @@ void cmd_init(void) {
                 "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
                 "    <title>{{title}}</title>\n"
                 "    <meta name=\"description\" content=\"{{description}}\">\n"
-                "    <link rel=\"stylesheet\" href=\"/style.css\">\n"
+                "    <link rel=\"stylesheet\" href=\"{{base_path}}/style.css\">\n"
                 "</head>\n"
                 "<body>\n"
                 "    <header>\n"
@@ -808,11 +811,11 @@ void cmd_init(void) {
                 "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
                 "    <title>{{title}}</title>\n"
                 "    <meta name=\"description\" content=\"{{description}}\">\n"
-                "    <link rel=\"stylesheet\" href=\"/style.css\">\n"
+                "    <link rel=\"stylesheet\" href=\"{{base_path}}/style.css\">\n"
                 "</head>\n"
                 "<body>\n"
                 "    <header>\n"
-                "        <a href=\"/\">&larr; Home</a>\n"
+                "        <a href=\"{{base_path}}/\">&larr; Home</a>\n"
                 "        <nav class=\"site-nav\"><ul>{{pages}}</ul></nav>\n"
                 "    </header>\n"
                 "    <main>\n"
@@ -844,11 +847,11 @@ void cmd_init(void) {
                 "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
                 "    <title>{{title}}</title>\n"
                 "    <meta name=\"description\" content=\"{{description}}\">\n"
-                "    <link rel=\"stylesheet\" href=\"/style.css\">\n"
+                "    <link rel=\"stylesheet\" href=\"{{base_path}}/style.css\">\n"
                 "</head>\n"
                 "<body>\n"
                 "    <header>\n"
-                "        <a href=\"/\">&larr; Home</a>\n"
+                "        <a href=\"{{base_path}}/\">&larr; Home</a>\n"
                 "        <nav class=\"site-nav\"><ul>{{pages}}</ul></nav>\n"
                 "    </header>\n"
                 "    <main>\n"

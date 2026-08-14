@@ -225,6 +225,12 @@ Two optional keys are worth calling out:
 - **`edit_url`** — a base URL that a page's source path is appended to, which
   is how a theme offers "Edit this page". Unset, and the themes hide the link
   rather than showing a dead one.
+- **`base_path`** — the subdirectory the finished site is served from, such
+  as `/my-project` on GitHub project pages. Every generated link is prefixed
+  with it, including the root-absolute links you write in markdown, and
+  templates get it as `{{base_path}}`. Unset means the site lives at a domain
+  root. Set `base_url` to the full address including the same path, so the
+  feed's absolute links match.
 - **`built_with`** — puts a quiet "Generated with atomik-ssg" line in the
   footer of every page, linked to the project. `init` writes it enabled;
   comment the line out to remove it. An absent key counts as off.
@@ -269,6 +275,7 @@ atomik-ssg build --drafts
 | `{{source_path}}` | post, page | the markdown file it was built from |
 | `{{edit_url}}` | post, page | `edit_url` joined with the source path |
 | `{{built_with}}` | all | the attribution link, or empty when `built_with` is off |
+| `{{base_path}}` | all | `base_path` from the config; empty at a domain root |
 | `{{prev_url}}` `{{prev_title}}` | post, page | previous in reading order, empty at the start |
 | `{{next_url}}` `{{next_title}}` | post, page | next in reading order, empty at the end |
 

@@ -32,6 +32,10 @@ int rfc822_date(const char *iso, char *out, size_t out_size);
 /* Wraps s in single quotes so a shell treats it as one literal argument. */
 char *shell_quote(const char *s);
 
+/* Returns a copy of html with prefix inserted in front of every root-absolute
+   href/src. Protocol-relative "//host" URLs are left alone. Caller frees. */
+char *prefix_links(const char *html, const char *prefix);
+
 /* Accepts the spellings people actually write: true, yes, on, 1. */
 int is_truthy(const char *v);
 

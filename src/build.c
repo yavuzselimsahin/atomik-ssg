@@ -51,10 +51,10 @@ static int append_item(StrBuf *items, const Post *p) {
         rc = sb_appendf(items,
             "            <li>\n"
             "                <time>%s</time>\n"
-            "                <a href=\"/posts/%s/\">%s</a>\n"
+            "                <a href=\"%s/posts/%s/\">%s</a>\n"
             "                <p>%s</p>\n"
             "            </li>\n",
-            date, p->slug, title, desc);
+            date, g_base_path, p->slug, title, desc);
     }
 
     free(title);
@@ -82,6 +82,7 @@ static int write_index(int listed, const char *items) {
         { "pages",            g_nav_html,         1 },
         { "page_tree",        g_tree_html,        1 },
         { "built_with",       g_built_with,       1 },
+        { "base_path",        g_base_path,        0 },
     };
 
     char *output = render_template(tmpl, vars, (int)(sizeof(vars) / sizeof(vars[0])));
@@ -115,7 +116,8 @@ static int build_nav(const TreeNode *tree, StrBuf *nav) {
         char *title = escape_html(k->title);
         if (!title) return -1;
 
-        int rc = sb_appendf(nav, "<li><a href=\"/%s/\">%s</a></li>", k->path, title);
+        int rc = sb_appendf(nav, "<li><a href=\"%s/%s/\">%s</a></li>",
+                            g_base_path, k->path, title);
         free(title);
         if (rc != 0) return -1;
     }

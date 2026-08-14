@@ -414,6 +414,40 @@ grep -q ':root\[data-theme="dark"\]' public/style.css && ok "explicit dark wins 
 grep -q ':root:not(\[data-theme="light"\])' public/style.css && ok "system dark still honoured" || bad "system preference dropped"
 cd "$WORK"
 
+group "base_path"
+cd "$WORK"
+printf 'bp\nS\nD\nY\nhttps://x.com\n\n\n4\n' | "$BIN" init >/dev/null 2>&1
+cd bp
+printf -- "---\ntitle: L\norder: 9\n---\n\n[in](/writing/) [out](https://x.com/a) ![i](/img/a.png)\n\n\`\`\`html\n<a href=\"/code/\">x</a>\n\`\`\`\n" > content/l.md
+
+# with no base_path the output must be exactly as before
+"$BIN" build >/dev/null 2>&1
+check "unset leaves links at the root" "$(grep -o 'href="/writing/"' public/l/index.html | head -1)" 'href="/writing/"'
+grep -q 'href="/style.css"' public/l/index.html && ok "unset leaves the stylesheet link alone" || bad "stylesheet link changed"
+
+printf 'base_path = "/proj"\n' > c.tmp && cat config.toml >> c.tmp && mv c.tmp config.toml
+"$BIN" build >/dev/null 2>&1
+grep -q 'href="/proj/style.css"'  public/l/index.html && ok "stylesheet prefixed"   || bad "stylesheet not prefixed"
+grep -q 'class="brand" href="/proj/"' public/l/index.html && ok "home link prefixed" || bad "home link not prefixed"
+grep -q 'href="/proj/writing/"' public/l/index.html && ok "sidebar tree prefixed"    || bad "tree not prefixed"
+grep -q 'class="prev" href="/proj/' public/l/index.html && ok "prev/next prefixed"   || bad "neighbours not prefixed"
+grep -q 'src="/proj/img/a.png"'  public/l/index.html && ok "markdown image prefixed"  || bad "image not prefixed"
+grep -q 'href="https://x.com/a"' public/l/index.html && ok "external link untouched"  || bad "external link rewritten"
+grep -q '&quot;/code/&quot;'     public/l/index.html && ok "code block untouched"     || bad "code block rewritten"
+grep -q 'href="/posts/'          public/index.html   && bad "post list missed the prefix" || ok "post list prefixed"
+
+# the value is normalised, however it was written
+for v in 'proj' '/proj/' '/proj'; do
+    printf 'base_path = "%s"\n' "$v" > c.tmp && grep -v '^base_path' config.toml >> c.tmp && mv c.tmp config.toml
+    "$BIN" build >/dev/null 2>&1
+    grep -q 'href="/proj/style.css"' public/l/index.html || bad "base_path \"$v\" not normalised"
+done
+ok "base_path normalised however it is written"
+
+printf 'base_path = "/../etc"\n' > c.tmp && grep -v '^base_path' config.toml >> c.tmp && mv c.tmp config.toml
+"$BIN" build 2>&1 | grep -q 'invalid base_path' && ok "climbing base_path rejected" || bad "climbing base_path accepted"
+cd "$WORK"
+
 group "Deploy safety"
 cd site
 printf 'title = "T"\n\n[deploy]\nhost = "h; touch %s/PWNED"\npath = "/tmp/x"\n' "$WORK" > config.toml

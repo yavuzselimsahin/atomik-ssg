@@ -26,6 +26,7 @@ const char *g_nav_html                 = "";
 const char *g_tree_html                = "";
 char    g_edit_url[512]                = "";
 char    g_built_with[256]              = "";
+char    g_base_path[256]               = "";
 
 #define DEFAULT_PORT 4545
 
@@ -69,6 +70,20 @@ static void load_config(int quiet) {
              toml_get_or(&g_toml, "", "edit_url", ""));
     size_t elen = strlen(g_edit_url);
     while (elen > 0 && g_edit_url[elen - 1] == '/') g_edit_url[--elen] = '\0';
+
+    /* Normalised to "" or "/prefix": a leading slash, never a trailing one,
+       so every call site can join it without thinking about separators. */
+    const char *bp = toml_get_or(&g_toml, "", "base_path", "");
+    if (strstr(bp, "..") || strchr(bp, ' ')) {
+        fprintf(stderr, "Warning: invalid base_path \"%s\", ignoring it\n", bp);
+        bp = "";
+    }
+    while (*bp == '/') bp++;
+    if (*bp) {
+        snprintf(g_base_path, sizeof(g_base_path), "/%s", bp);
+        size_t blen = strlen(g_base_path);
+        while (blen > 1 && g_base_path[blen - 1] == '/') g_base_path[--blen] = '\0';
+    }
 
     /* Absent means off, so commenting the line out is enough to remove it. */
     if (is_truthy(toml_get(&g_toml, "", "built_with")))

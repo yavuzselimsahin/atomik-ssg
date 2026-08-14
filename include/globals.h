@@ -20,6 +20,11 @@ extern const char *g_nav_html;
 /* The nested <ul> of the whole page hierarchy, available as {{page_tree}}. */
 extern const char *g_tree_html;
 
+/* config.toml `base_path`: the subdirectory the finished site is served
+   from, normalised to "" or "/prefix". Every generated link is prefixed with
+   it, and templates get it as {{base_path}}. */
+extern char g_base_path[256];
+
 /* config.toml `built_with`: the attribution link, ready to place, or empty
    when the key is absent or false. Commenting the key out removes it. */
 extern char g_built_with[256];

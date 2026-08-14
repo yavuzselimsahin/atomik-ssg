@@ -1,4 +1,5 @@
 #include "../include/tree.h"
+#include "../include/globals.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -117,7 +118,7 @@ static int emit(const TreeNode *n, StrBuf *out) {
         if (!title) return -1;
 
         int rc = k->page
-            ? sb_appendf(out, "<li><a href=\"/%s/\">%s</a>", k->path, title)
+            ? sb_appendf(out, "<li><a href=\"%s/%s/\">%s</a>", g_base_path, k->path, title)
             : sb_appendf(out, "<li><span>%s</span>", title);
         free(title);
         if (rc != 0) return -1;

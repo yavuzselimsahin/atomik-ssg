@@ -70,10 +70,21 @@ int render_entry(const char *tmpl, const Post *post,
     }
 
     /* Neighbour URLs are built here so templates stay free of path logic. */
-    char prev_url[MAX_FIELD + 32] = "";
-    char next_url[MAX_FIELD + 32] = "";
-    if (prev) snprintf(prev_url, sizeof(prev_url), "/%s%s%s/", subdir, *subdir ? "/" : "", prev->slug);
-    if (next) snprintf(next_url, sizeof(next_url), "/%s%s%s/", subdir, *subdir ? "/" : "", next->slug);
+    char prev_url[MAX_PATH + 320] = "";
+    char next_url[MAX_PATH + 320] = "";
+    if (prev) snprintf(prev_url, sizeof(prev_url), "%s/%s%s%s/",
+                       g_base_path, subdir, *subdir ? "/" : "", prev->slug);
+    if (next) snprintf(next_url, sizeof(next_url), "%s/%s%s%s/",
+                       g_base_path, subdir, *subdir ? "/" : "", next->slug);
+
+    /* Links the author wrote in markdown are root-absolute too, so they need
+       the same prefix as the ones this program generates. */
+    if (g_base_path[0]) {
+        char *moved = prefix_links(html, g_base_path);
+        if (!moved) { free(html); return -1; }
+        free(html);
+        html = moved;
+    }
 
     /* Empty unless config.toml sets edit_url, so a theme can carry the link
        unconditionally and simply show nothing when it is not configured. */
@@ -94,6 +105,7 @@ int render_entry(const char *tmpl, const Post *post,
         { "source_path",       post->source,              0 },
         { "edit_url",          edit_url,                  0 },
         { "built_with",        g_built_with,              1 },
+        { "base_path",         g_base_path,               0 },
         { "prev_url",          prev_url,                  0 },
         { "prev_title",        prev ? prev->title : "",   0 },
         { "next_url",          next_url,                  0 },

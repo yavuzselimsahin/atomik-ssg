@@ -226,6 +226,32 @@ char *shell_quote(const char *s) {
     return sb.data;
 }
 
+char *prefix_links(const char *html, const char *prefix) {
+    StrBuf sb;
+    sb_init(&sb);
+    if (!html) html = "";
+
+    for (const char *p = html; *p; ) {
+        /* cmark escapes quotes inside code, so a bare href="/ is always a
+           real attribute and never something the author was quoting. */
+        size_t alen = 0;
+        if      (strncmp(p, "href=\"/", 7) == 0) alen = 7;
+        else if (strncmp(p, "src=\"/",  6) == 0) alen = 6;
+
+        if (alen && p[alen] != '/') {          /* "//host" is another site */
+            if (sb_append_n(&sb, p, alen - 1) != 0) { sb_free(&sb); return NULL; }
+            if (sb_append(&sb, prefix) != 0)        { sb_free(&sb); return NULL; }
+            p += alen - 1;                      /* the '/' still has to be written */
+            continue;
+        }
+        if (sb_append_n(&sb, p, 1) != 0) { sb_free(&sb); return NULL; }
+        p++;
+    }
+
+    if (!sb.data && sb_append_n(&sb, "", 0) != 0) return NULL;
+    return sb.data;
+}
+
 int is_truthy(const char *v) {
     if (!v) return 0;
     return strcasecmp(v, "true") == 0 || strcasecmp(v, "yes") == 0 ||
