@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navigation</title>
+    <meta name="description" content="Menus, sidebars and reading order">
+    <link rel="stylesheet" href="/atomik-ssg/style.css">
+    <script>
+    /* Runs before the first paint, so a reader who chose a scheme never
+       sees the other one flash first. */
+    (function () {
+        var t = localStorage.getItem('theme');
+        if (t) document.documentElement.setAttribute('data-theme', t);
+    })();
+    </script>
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="/atomik-ssg/">atomik-ssg</a>
+        <span class="version">1.0.0</span>
+        <button class="theme-toggle" type="button"
+                aria-label="Switch between light and dark">
+            <span class="in-light">Dark</span>
+            <span class="in-dark">Light</span>
+        </button>
+    </header>
+    <div class="layout">
+        <aside class="sidebar">
+            <ul><li><a href="/atomik-ssg/installation/">Installation</a></li><li><a href="/atomik-ssg/quick-start/">Quick Start</a></li><li><a href="/atomik-ssg/guide/">Guide</a><ul><li><a href="/atomik-ssg/guide/content-model/">Content Model</a></li><li><a href="/atomik-ssg/guide/frontmatter/">Frontmatter</a></li><li><a href="/atomik-ssg/guide/navigation/">Navigation</a></li><li><a href="/atomik-ssg/guide/drafts/">Drafts</a></li><li><a href="/atomik-ssg/guide/markdown/">Markdown Support</a></li><li><a href="/atomik-ssg/guide/themes/">Themes</a></li><li><a href="/atomik-ssg/guide/versions/">Versions</a></li></ul></li><li><a href="/atomik-ssg/reference/">Reference</a><ul><li><a href="/atomik-ssg/reference/commands/">Commands</a></li><li><a href="/atomik-ssg/reference/configuration/">Configuration</a></li><li><a href="/atomik-ssg/reference/template-variables/">Template Variables</a></li></ul></li><li><a href="/atomik-ssg/deploying/">Deploying</a></li><li><a href="/atomik-ssg/colophon/">Colophon</a></li></ul>
+            <footer class="site-footer"><a href="https://github.com/yavuzselimsahin/atomik-ssg">Generated with atomik-ssg</a></footer>
+        </aside>
+        <main>
+            <article>
+                <h1>Navigation</h1>
+                <p>Navigation is derived from what is in <code>content/</code>. Adding a file is enough to
+publish and link it; there is no menu to keep in sync, and nothing to forget
+when you rename something.</p>
+<h2>Ordering</h2>
+<p>Entries without an <code>order:</code> are sorted alphabetically by title. Add <code>order:</code>
+to the ones whose position matters and they move to the front, lowest number
+first:</p>
+<pre><code class="language-markdown">---
+title: Getting Started
+order: 1
+---
+</code></pre>
+<p>Ordering applies independently at each level, so a section's children are
+arranged among themselves.</p>
+<blockquote class="callout callout-note">
+<p>Titles are compared after transliteration rather than byte by byte. Without
+that, every title beginning with a non-ASCII letter would sort below every
+ASCII one — <code>İletişim</code> would land after <code>Projects</code> instead of between
+<code>About</code> and it. It also means the order is identical on every machine,
+which relying on the system locale would not be.</p>
+</blockquote>
+<h2>Two shapes of navigation</h2>
+<p><code>{{pages}}</code> gives the <strong>top level only</strong>, as <code>&lt;li&gt;</code> items. That suits a menu
+bar: it stays short however deep the tree grows.</p>
+<p><code>{{page_tree}}</code> gives the <strong>whole hierarchy</strong> as a nested <code>&lt;ul&gt;</code>. That suits a
+sidebar. Sections with an <code>index.md</code> render as links; sections without one
+render as a <code>&lt;span&gt;</code>, so you get a heading rather than a dead link.</p>
+<p>Both are available to every template, so a post can carry the same navigation
+as a page.</p>
+<h2>Previous and next</h2>
+<p>Every entry carries <code>{{prev_url}}</code>, <code>{{prev_title}}</code>, <code>{{next_url}}</code> and
+<code>{{next_title}}</code>.</p>
+<p>On a <strong>page</strong> these follow the sidebar from top to bottom — the reading order.
+A section leads into its first child, and the last child of a section leads
+into the next section. Reorder the sidebar and they reorder with it.</p>
+<p>On a <strong>post</strong> they follow the dates instead: <code>prev</code> is the older post, <code>next</code>
+is the newer one.</p>
+<p>At the two ends of the sequence the variables expand to nothing. There are no
+conditionals in the template language, and for this it needs none — the
+bundled themes hide the empty links with one rule:</p>
+<pre><code class="language-css">.post-nav a:empty { display: none; }
+</code></pre>
+
+            </article>
+            <nav class="post-nav">
+                <a class="prev" href="/atomik-ssg/guide/frontmatter/">Frontmatter</a>
+                <a class="next" href="/atomik-ssg/guide/drafts/">Drafts</a>
+            </nav>
+            <a class="edit" href="">Edit this page</a>
+        </main>
+    </div>
+    <script>
+    (function () {
+        var here = location.pathname;
+        document.querySelectorAll('.sidebar > ul a').forEach(function (a) {
+            if (a.getAttribute('href') === here) a.classList.add('active');
+        });
+
+        var root = document.documentElement;
+        var button = document.querySelector('.theme-toggle');
+        if (button) button.addEventListener('click', function () {
+            /* No stored choice yet means we are following the system. */
+            var now = root.getAttribute('data-theme') ||
+                (matchMedia('(prefers-color-scheme: dark)').matches
+                    ? 'dark' : 'light');
+            var next = now === 'dark' ? 'light' : 'dark';
+            root.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+        });
+    })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontmatter</title>
+    <meta name="description" content="The fields a page or post can set">
+    <link rel="stylesheet" href="/atomik-ssg/style.css">
+    <script>
+    /* Runs before the first paint, so a reader who chose a scheme never
+       sees the other one flash first. */
+    (function () {
+        var t = localStorage.getItem('theme');
+        if (t) document.documentElement.setAttribute('data-theme', t);
+    })();
+    </script>
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="/atomik-ssg/">atomik-ssg</a>
+        <span class="version">1.0.0</span>
+        <button class="theme-toggle" type="button"
+                aria-label="Switch between light and dark">
+            <span class="in-light">Dark</span>
+            <span class="in-dark">Light</span>
+        </button>
+    </header>
+    <div class="layout">
+        <aside class="sidebar">
+            <ul><li><a href="/atomik-ssg/installation/">Installation</a></li><li><a href="/atomik-ssg/quick-start/">Quick Start</a></li><li><a href="/atomik-ssg/guide/">Guide</a><ul><li><a href="/atomik-ssg/guide/content-model/">Content Model</a></li><li><a href="/atomik-ssg/guide/frontmatter/">Frontmatter</a></li><li><a href="/atomik-ssg/guide/navigation/">Navigation</a></li><li><a href="/atomik-ssg/guide/drafts/">Drafts</a></li><li><a href="/atomik-ssg/guide/markdown/">Markdown Support</a></li><li><a href="/atomik-ssg/guide/themes/">Themes</a></li><li><a href="/atomik-ssg/guide/versions/">Versions</a></li></ul></li><li><a href="/atomik-ssg/reference/">Reference</a><ul><li><a href="/atomik-ssg/reference/commands/">Commands</a></li><li><a href="/atomik-ssg/reference/configuration/">Configuration</a></li><li><a href="/atomik-ssg/reference/template-variables/">Template Variables</a></li></ul></li><li><a href="/atomik-ssg/deploying/">Deploying</a></li><li><a href="/atomik-ssg/colophon/">Colophon</a></li></ul>
+            <footer class="site-footer"><a href="https://github.com/yavuzselimsahin/atomik-ssg">Generated with atomik-ssg</a></footer>
+        </aside>
+        <main>
+            <article>
+                <h1>Frontmatter</h1>
+                <p>Every markdown file starts with a block fenced by <code>---</code>:</p>
+<pre><code class="language-markdown">---
+title: My First Post
+date: 2026-08-10
+slug: my-first-post
+description: A short summary
+draft: false
+---
+
+The content starts here.
+</code></pre>
+<p>The block is required — a file without one is skipped, with a warning naming
+the file. That is deliberate: it keeps stray <code>NOTES.md</code> and <code>TODO.md</code> files out
+of your published site.</p>
+<p>Everything <em>inside</em> the block is optional.</p>
+<h2>Fields</h2>
+<ul>
+<li><strong><code>title</code></strong> — shown as the page heading and in the menu and sidebar. Falls
+back to the slug when omitted.</li>
+<li><strong><code>description</code></strong> — used for the page's <code>&lt;meta name=&quot;description&quot;&gt;</code> and, on
+posts, as the summary in the index listing and the feed.</li>
+<li><strong><code>slug</code></strong> — overrides the URL segment otherwise taken from the file name.</li>
+<li><strong><code>date</code></strong> — posts only, written as <code>YYYY-MM-DD</code>. Taken from a
+<code>YYYY-MM-DD-</code> file name prefix when omitted. Posts are ordered by it, newest
+first, and it becomes the feed's publication date.</li>
+<li><strong><code>draft</code></strong> — <code>true</code> keeps the entry out of the build entirely. See
+<a href="/atomik-ssg/guide/drafts/">Drafts</a>.</li>
+<li><strong><code>order</code></strong> — position in the menu and sidebar, lowest first. Entries
+without one follow alphabetically. See <a href="/atomik-ssg/guide/navigation/">Navigation</a>.</li>
+</ul>
+<p>Unknown keys are ignored, so you can keep notes of your own in there.</p>
+<h2>Values</h2>
+<p>Values are read literally to the end of the line. There is no quoting, no
+escaping and no multi-line syntax, so a title containing a colon is fine:</p>
+<pre><code class="language-markdown">title: C: A Modern Approach
+</code></pre>
+<p>Anything you write is HTML-escaped on the way out, so an ampersand or an angle
+bracket in a title is safe.</p>
+
+            </article>
+            <nav class="post-nav">
+                <a class="prev" href="/atomik-ssg/guide/content-model/">Content Model</a>
+                <a class="next" href="/atomik-ssg/guide/navigation/">Navigation</a>
+            </nav>
+            <a class="edit" href="">Edit this page</a>
+        </main>
+    </div>
+    <script>
+    (function () {
+        var here = location.pathname;
+        document.querySelectorAll('.sidebar > ul a').forEach(function (a) {
+            if (a.getAttribute('href') === here) a.classList.add('active');
+        });
+
+        var root = document.documentElement;
+        var button = document.querySelector('.theme-toggle');
+        if (button) button.addEventListener('click', function () {
+            /* No stored choice yet means we are following the system. */
+            var now = root.getAttribute('data-theme') ||
+                (matchMedia('(prefers-color-scheme: dark)').matches
+                    ? 'dark' : 'light');
+            var next = now === 'dark' ? 'light' : 'dark';
+            root.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+        });
+    })();
+    </script>
+</body>
+</html>

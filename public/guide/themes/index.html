@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Themes</title>
+    <meta name="description" content="The four bundled themes, and writing your own">
+    <link rel="stylesheet" href="/atomik-ssg/style.css">
+    <script>
+    /* Runs before the first paint, so a reader who chose a scheme never
+       sees the other one flash first. */
+    (function () {
+        var t = localStorage.getItem('theme');
+        if (t) document.documentElement.setAttribute('data-theme', t);
+    })();
+    </script>
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="/atomik-ssg/">atomik-ssg</a>
+        <span class="version">1.0.0</span>
+        <button class="theme-toggle" type="button"
+                aria-label="Switch between light and dark">
+            <span class="in-light">Dark</span>
+            <span class="in-dark">Light</span>
+        </button>
+    </header>
+    <div class="layout">
+        <aside class="sidebar">
+            <ul><li><a href="/atomik-ssg/installation/">Installation</a></li><li><a href="/atomik-ssg/quick-start/">Quick Start</a></li><li><a href="/atomik-ssg/guide/">Guide</a><ul><li><a href="/atomik-ssg/guide/content-model/">Content Model</a></li><li><a href="/atomik-ssg/guide/frontmatter/">Frontmatter</a></li><li><a href="/atomik-ssg/guide/navigation/">Navigation</a></li><li><a href="/atomik-ssg/guide/drafts/">Drafts</a></li><li><a href="/atomik-ssg/guide/markdown/">Markdown Support</a></li><li><a href="/atomik-ssg/guide/themes/">Themes</a></li><li><a href="/atomik-ssg/guide/versions/">Versions</a></li></ul></li><li><a href="/atomik-ssg/reference/">Reference</a><ul><li><a href="/atomik-ssg/reference/commands/">Commands</a></li><li><a href="/atomik-ssg/reference/configuration/">Configuration</a></li><li><a href="/atomik-ssg/reference/template-variables/">Template Variables</a></li></ul></li><li><a href="/atomik-ssg/deploying/">Deploying</a></li><li><a href="/atomik-ssg/colophon/">Colophon</a></li></ul>
+            <footer class="site-footer"><a href="https://github.com/yavuzselimsahin/atomik-ssg">Generated with atomik-ssg</a></footer>
+        </aside>
+        <main>
+            <article>
+                <h1>Themes</h1>
+                <p>A theme is a directory under <code>themes/</code> holding <code>templates/</code> and <code>static/</code>.
+<code>init</code> writes all four; <code>config.toml</code> picks which one is used:</p>
+<pre><code class="language-toml">theme = &quot;docs&quot;
+</code></pre>
+<h2>The bundled themes</h2>
+<ul>
+<li><strong>default</strong> — light and minimal, serif body text. A personal blog.</li>
+<li><strong>dark</strong> — a terminal feel, monospaced.</li>
+<li><strong>sepia</strong> — warm and book-like, for long-form reading.</li>
+<li><strong>docs</strong> — a two-column documentation layout, described below.</li>
+</ul>
+<p>The three blog themes share their templates and differ only in their
+stylesheet. The docs theme has templates of its own, because a sidebar is a
+structural difference rather than a cosmetic one.</p>
+<h2>What the docs theme adds</h2>
+<ul>
+<li>A sticky sidebar carrying <code>{{page_tree}}</code>. Only the tree scrolls; what sits
+beneath it stays put.</li>
+<li>Previous/next cards at the foot of every page, following the reading order.</li>
+<li>A light and a dark palette, taken from the <code>default</code> and <code>dark</code> themes so a
+site that mixes documentation and posts still looks like one thing.</li>
+<li>A switch between the two in the top bar. The choice is remembered, and a
+small script in <code>&lt;head&gt;</code> applies it before the first paint so the other
+scheme never flashes first. With no choice stored, the reader's system
+setting decides.</li>
+<li>The <code>version</code> from your config, shown beside the site name.</li>
+<li>An &quot;Edit this page&quot; link, which disappears when <code>edit_url</code> is unset.</li>
+<li>Colours for each kind of <a href="/atomik-ssg/guide/markdown/">callout</a>.</li>
+</ul>
+<h2>Files a theme provides</h2>
+<ul>
+<li><code>templates/index.html</code> — the site's front page</li>
+<li><code>templates/post.html</code> — a single post</li>
+<li><code>templates/page.html</code> — a single page. Optional: pages fall back to
+<code>post.html</code> when it is missing.</li>
+</ul>
+<p>Everything in <code>static/</code> is copied to the root of the output, so
+<code>themes/docs/static/style.css</code> is served at <code>/style.css</code>.</p>
+<p>A project-level <code>static/</code> directory is copied on top of that, which is where
+images and anything else of your own should go.</p>
+<blockquote class="callout callout-note">
+<p>Themes are copied into your project when you run <code>init</code>, so they are yours
+to edit. The flip side is that a later version of atomik-ssg will not update
+them; a fix to a bundled theme reaches an existing project only if you copy
+it across.</p>
+</blockquote>
+<h2>Writing your own</h2>
+<p>Copy one of the bundled themes, rename the directory, point <code>theme</code> at it and
+edit. The full list of placeholders is in
+<a href="/atomik-ssg/reference/template-variables/">Template Variables</a>. Unknown placeholders are
+left untouched in the output, so a theme can carry markup the generator knows
+nothing about.</p>
+<h2>Syntax highlighting</h2>
+<p>There is no highlighter in the binary, on purpose. cmark already emits the
+language as a class:</p>
+<pre><code class="language-html">&lt;pre&gt;&lt;code class=&quot;language-c&quot;&gt;
+</code></pre>
+<p>so dropping a highlighter into your theme's <code>static/</code> and referencing it from
+the template is enough. The choice — and the download — stays with the theme
+rather than being forced on every site.</p>
+
+            </article>
+            <nav class="post-nav">
+                <a class="prev" href="/atomik-ssg/guide/markdown/">Markdown Support</a>
+                <a class="next" href="/atomik-ssg/guide/versions/">Versions</a>
+            </nav>
+            <a class="edit" href="">Edit this page</a>
+        </main>
+    </div>
+    <script>
+    (function () {
+        var here = location.pathname;
+        document.querySelectorAll('.sidebar > ul a').forEach(function (a) {
+            if (a.getAttribute('href') === here) a.classList.add('active');
+        });
+
+        var root = document.documentElement;
+        var button = document.querySelector('.theme-toggle');
+        if (button) button.addEventListener('click', function () {
+            /* No stored choice yet means we are following the system. */
+            var now = root.getAttribute('data-theme') ||
+                (matchMedia('(prefers-color-scheme: dark)').matches
+                    ? 'dark' : 'light');
+            var next = now === 'dark' ? 'light' : 'dark';
+            root.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+        });
+    })();
+    </script>
+</body>
+</html>

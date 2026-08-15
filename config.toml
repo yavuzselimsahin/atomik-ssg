@@ -1,0 +1,28 @@
+title       = "atomik-ssg"
+description = "A lightweight static site generator written in C"
+base_url    = "https://yavuzselimsahin.github.io/atomik-ssg"
+author      = "Yavuz Selim Sahin"
+theme       = "docs"
+version     = "1.0.0"
+
+# A quiet line in the footer noting how the site was made.
+# Comment it out to remove it.
+built_with  = true
+
+# Uncomment once this site has a repository, and the docs theme will show an
+# "Edit this page" link on every page.
+# edit_url  = "https://github.com/yavuzselimsahin/atomik-ssg/"
+
+# Set this if the site is served from a subdirectory rather than a domain
+# root, for example on GitHub project pages.
+base_path = "/atomik-ssg"
+
+[build]
+output_dir = "public"
+
+[server]
+port = 4545
+
+[deploy]
+host = "user@vps"
+path = "/var/www/atomik-ssg-docs"

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Commands</title>
+    <meta name="description" content="The command line in full">
+    <link rel="stylesheet" href="/atomik-ssg/style.css">
+    <script>
+    /* Runs before the first paint, so a reader who chose a scheme never
+       sees the other one flash first. */
+    (function () {
+        var t = localStorage.getItem('theme');
+        if (t) document.documentElement.setAttribute('data-theme', t);
+    })();
+    </script>
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="/atomik-ssg/">atomik-ssg</a>
+        <span class="version">1.0.0</span>
+        <button class="theme-toggle" type="button"
+                aria-label="Switch between light and dark">
+            <span class="in-light">Dark</span>
+            <span class="in-dark">Light</span>
+        </button>
+    </header>
+    <div class="layout">
+        <aside class="sidebar">
+            <ul><li><a href="/atomik-ssg/installation/">Installation</a></li><li><a href="/atomik-ssg/quick-start/">Quick Start</a></li><li><a href="/atomik-ssg/guide/">Guide</a><ul><li><a href="/atomik-ssg/guide/content-model/">Content Model</a></li><li><a href="/atomik-ssg/guide/frontmatter/">Frontmatter</a></li><li><a href="/atomik-ssg/guide/navigation/">Navigation</a></li><li><a href="/atomik-ssg/guide/drafts/">Drafts</a></li><li><a href="/atomik-ssg/guide/markdown/">Markdown Support</a></li><li><a href="/atomik-ssg/guide/themes/">Themes</a></li><li><a href="/atomik-ssg/guide/versions/">Versions</a></li></ul></li><li><a href="/atomik-ssg/reference/">Reference</a><ul><li><a href="/atomik-ssg/reference/commands/">Commands</a></li><li><a href="/atomik-ssg/reference/configuration/">Configuration</a></li><li><a href="/atomik-ssg/reference/template-variables/">Template Variables</a></li></ul></li><li><a href="/atomik-ssg/deploying/">Deploying</a></li><li><a href="/atomik-ssg/colophon/">Colophon</a></li></ul>
+            <footer class="site-footer"><a href="https://github.com/yavuzselimsahin/atomik-ssg">Generated with atomik-ssg</a></footer>
+        </aside>
+        <main>
+            <article>
+                <h1>Commands</h1>
+                <h2><code>atomik-ssg init</code></h2>
+<p>Creates a project in a new directory, asking for a name, title, description,
+author, base URL, deploy target and theme. Which theme you choose decides
+whether you are asked about starter pages or handed a documentation scaffold.</p>
+<p>Refuses to touch a directory that already exists, and rejects a project name
+containing a path separator.</p>
+<h2><code>atomik-ssg build</code></h2>
+<p>Reads <code>content/</code>, writes the site into <code>public/</code> (or whatever <code>output_dir</code>
+says). Reports how many posts, pages and drafts it handled.</p>
+<p><code>--drafts</code> includes entries marked <code>draft: true</code>.</p>
+<h2><code>atomik-ssg new &lt;title&gt;</code></h2>
+<p>Creates a dated post under <code>content/posts/</code> with frontmatter filled in. Quotes
+are optional — <code>atomik-ssg new My First Post</code> works, and so does the quoted
+form.</p>
+<p>The file name is today's date plus a slug derived from the title.</p>
+<h2><code>atomik-ssg serve [port]</code></h2>
+<p>Serves the output directory over HTTP on localhost. Without an argument it uses
+<code>[server] port</code> from <code>config.toml</code>, falling back to 4545.</p>
+<p>It is a preview server, not a production one: it binds to the loopback
+interface only, refuses paths that try to climb out of the output directory,
+redirects a directory to its trailing-slash form, and serves nothing it was not
+asked for.</p>
+<p>It does not rebuild on change. Run <code>build</code> again and refresh.</p>
+<h2><code>atomik-ssg deploy</code></h2>
+<p>Builds, then mirrors the output to the host in <code>[deploy]</code> using <code>rsync -avz --delete</code>. Because <code>--delete</code> removes remote files that are not in your output,
+it asks for confirmation first and prints the exact command it will run.</p>
+<p><code>--drafts</code> is accepted here too, and applies to the build.</p>
+<h2><code>atomik-ssg help</code></h2>
+<p>Prints a summary of all of the above.</p>
+
+            </article>
+            <nav class="post-nav">
+                <a class="prev" href="/atomik-ssg/reference/">Reference</a>
+                <a class="next" href="/atomik-ssg/reference/configuration/">Configuration</a>
+            </nav>
+            <a class="edit" href="">Edit this page</a>
+        </main>
+    </div>
+    <script>
+    (function () {
+        var here = location.pathname;
+        document.querySelectorAll('.sidebar > ul a').forEach(function (a) {
+            if (a.getAttribute('href') === here) a.classList.add('active');
+        });
+
+        var root = document.documentElement;
+        var button = document.querySelector('.theme-toggle');
+        if (button) button.addEventListener('click', function () {
+            /* No stored choice yet means we are following the system. */
+            var now = root.getAttribute('data-theme') ||
+                (matchMedia('(prefers-color-scheme: dark)').matches
+                    ? 'dark' : 'light');
+            var next = now === 'dark' ? 'light' : 'dark';
+            root.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+        });
+    })();
+    </script>
+</body>
+</html>

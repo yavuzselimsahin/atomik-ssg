@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Template Variables</title>
+    <meta name="description" content="Everything a template can place">
+    <link rel="stylesheet" href="/atomik-ssg/style.css">
+    <script>
+    /* Runs before the first paint, so a reader who chose a scheme never
+       sees the other one flash first. */
+    (function () {
+        var t = localStorage.getItem('theme');
+        if (t) document.documentElement.setAttribute('data-theme', t);
+    })();
+    </script>
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="/atomik-ssg/">atomik-ssg</a>
+        <span class="version">1.0.0</span>
+        <button class="theme-toggle" type="button"
+                aria-label="Switch between light and dark">
+            <span class="in-light">Dark</span>
+            <span class="in-dark">Light</span>
+        </button>
+    </header>
+    <div class="layout">
+        <aside class="sidebar">
+            <ul><li><a href="/atomik-ssg/installation/">Installation</a></li><li><a href="/atomik-ssg/quick-start/">Quick Start</a></li><li><a href="/atomik-ssg/guide/">Guide</a><ul><li><a href="/atomik-ssg/guide/content-model/">Content Model</a></li><li><a href="/atomik-ssg/guide/frontmatter/">Frontmatter</a></li><li><a href="/atomik-ssg/guide/navigation/">Navigation</a></li><li><a href="/atomik-ssg/guide/drafts/">Drafts</a></li><li><a href="/atomik-ssg/guide/markdown/">Markdown Support</a></li><li><a href="/atomik-ssg/guide/themes/">Themes</a></li><li><a href="/atomik-ssg/guide/versions/">Versions</a></li></ul></li><li><a href="/atomik-ssg/reference/">Reference</a><ul><li><a href="/atomik-ssg/reference/commands/">Commands</a></li><li><a href="/atomik-ssg/reference/configuration/">Configuration</a></li><li><a href="/atomik-ssg/reference/template-variables/">Template Variables</a></li></ul></li><li><a href="/atomik-ssg/deploying/">Deploying</a></li><li><a href="/atomik-ssg/colophon/">Colophon</a></li></ul>
+            <footer class="site-footer"><a href="https://github.com/yavuzselimsahin/atomik-ssg">Generated with atomik-ssg</a></footer>
+        </aside>
+        <main>
+            <article>
+                <h1>Template Variables</h1>
+                <p>Templates live in <code>themes/&lt;name&gt;/templates/</code>. Any <code>{{name}}</code> from the list
+below is replaced; anything unrecognised is left in the output untouched.</p>
+<p>Values are HTML-escaped unless noted as raw.</p>
+<h2>This entry</h2>
+<ul>
+<li><strong><code>{{title}}</code></strong> — the page or post title</li>
+<li><strong><code>{{description}}</code></strong> — its description</li>
+<li><strong><code>{{slug}}</code></strong> — its URL path</li>
+<li><strong><code>{{date}}</code></strong> — posts only; empty on pages</li>
+<li><strong><code>{{content}}</code></strong> — the rendered markdown. Raw</li>
+<li><strong><code>{{source_path}}</code></strong> — the markdown file it was built from, such as
+<code>content/guide/navigation.md</code></li>
+<li><strong><code>{{edit_url}}</code></strong> — <code>edit_url</code> from the config joined to that path. Empty
+when the config does not set one</li>
+</ul>
+<h2>The site</h2>
+<ul>
+<li><strong><code>{{site_title}}</code></strong> — <code>title</code> from <code>config.toml</code></li>
+<li><strong><code>{{site_description}}</code></strong> — <code>description</code> from <code>config.toml</code></li>
+<li><strong><code>{{version}}</code></strong> — <code>version</code> from <code>config.toml</code>, empty when unset</li>
+<li><strong><code>{{base_path}}</code></strong> — the subdirectory the site is served from, empty at a
+domain root. Prefix your own links with it so they survive a move</li>
+<li><strong><code>{{built_with}}</code></strong> — the attribution link, or empty when <code>built_with</code> is
+off. Raw</li>
+</ul>
+<h2>Navigation</h2>
+<ul>
+<li><strong><code>{{pages}}</code></strong> — the top-level menu, as <code>&lt;li&gt;</code> items. Raw</li>
+<li><strong><code>{{page_tree}}</code></strong> — the whole page hierarchy, as a nested <code>&lt;ul&gt;</code>. Raw</li>
+<li><strong><code>{{post_items}}</code></strong> — the chronological post list, as <code>&lt;li&gt;</code> items. Raw.
+Index template only</li>
+<li><strong><code>{{prev_url}}</code></strong>, <strong><code>{{prev_title}}</code></strong> — the previous entry in reading
+order, empty at the start</li>
+<li><strong><code>{{next_url}}</code></strong>, <strong><code>{{next_title}}</code></strong> — the next entry, empty at the end</li>
+</ul>
+<h2>Notes</h2>
+<p>There are no conditionals, loops or includes. The whole language is &quot;find a
+placeholder, put a value there&quot;.</p>
+<p>Where a condition seems necessary, it usually is not. The bundled themes
+handle the ends of a sequence with <code>a:empty { display: none }</code>, an unset edit
+link with <code>a[href=&quot;&quot;] { display: none }</code>, and an absent version badge the same
+way — one CSS rule each, instead of a template engine.</p>
+
+            </article>
+            <nav class="post-nav">
+                <a class="prev" href="/atomik-ssg/reference/configuration/">Configuration</a>
+                <a class="next" href="/atomik-ssg/deploying/">Deploying</a>
+            </nav>
+            <a class="edit" href="">Edit this page</a>
+        </main>
+    </div>
+    <script>
+    (function () {
+        var here = location.pathname;
+        document.querySelectorAll('.sidebar > ul a').forEach(function (a) {
+            if (a.getAttribute('href') === here) a.classList.add('active');
+        });
+
+        var root = document.documentElement;
+        var button = document.querySelector('.theme-toggle');
+        if (button) button.addEventListener('click', function () {
+            /* No stored choice yet means we are following the system. */
+            var now = root.getAttribute('data-theme') ||
+                (matchMedia('(prefers-color-scheme: dark)').matches
+                    ? 'dark' : 'light');
+            var next = now === 'dark' ? 'light' : 'dark';
+            root.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+        });
+    })();
+    </script>
+</body>
+</html>

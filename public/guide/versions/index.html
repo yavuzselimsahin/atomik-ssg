@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Versions</title>
+    <meta name="description" content="Documenting more than one release">
+    <link rel="stylesheet" href="/atomik-ssg/style.css">
+    <script>
+    /* Runs before the first paint, so a reader who chose a scheme never
+       sees the other one flash first. */
+    (function () {
+        var t = localStorage.getItem('theme');
+        if (t) document.documentElement.setAttribute('data-theme', t);
+    })();
+    </script>
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="/atomik-ssg/">atomik-ssg</a>
+        <span class="version">1.0.0</span>
+        <button class="theme-toggle" type="button"
+                aria-label="Switch between light and dark">
+            <span class="in-light">Dark</span>
+            <span class="in-dark">Light</span>
+        </button>
+    </header>
+    <div class="layout">
+        <aside class="sidebar">
+            <ul><li><a href="/atomik-ssg/installation/">Installation</a></li><li><a href="/atomik-ssg/quick-start/">Quick Start</a></li><li><a href="/atomik-ssg/guide/">Guide</a><ul><li><a href="/atomik-ssg/guide/content-model/">Content Model</a></li><li><a href="/atomik-ssg/guide/frontmatter/">Frontmatter</a></li><li><a href="/atomik-ssg/guide/navigation/">Navigation</a></li><li><a href="/atomik-ssg/guide/drafts/">Drafts</a></li><li><a href="/atomik-ssg/guide/markdown/">Markdown Support</a></li><li><a href="/atomik-ssg/guide/themes/">Themes</a></li><li><a href="/atomik-ssg/guide/versions/">Versions</a></li></ul></li><li><a href="/atomik-ssg/reference/">Reference</a><ul><li><a href="/atomik-ssg/reference/commands/">Commands</a></li><li><a href="/atomik-ssg/reference/configuration/">Configuration</a></li><li><a href="/atomik-ssg/reference/template-variables/">Template Variables</a></li></ul></li><li><a href="/atomik-ssg/deploying/">Deploying</a></li><li><a href="/atomik-ssg/colophon/">Colophon</a></li></ul>
+            <footer class="site-footer"><a href="https://github.com/yavuzselimsahin/atomik-ssg">Generated with atomik-ssg</a></footer>
+        </aside>
+        <main>
+            <article>
+                <h1>Versions</h1>
+                <h2>Showing which release this is</h2>
+<pre><code class="language-toml">version = &quot;0.3.0&quot;
+</code></pre>
+<p>The docs theme shows it beside the site name. Leave the key out and nothing is
+displayed, so a site that does not track releases carries no empty badge.</p>
+<p>It is available to any template as <code>{{version}}</code>.</p>
+<h2>Keeping older versions online</h2>
+<p>A version of the documentation is a separate build in a separate directory.
+Nothing in the generator manages versions, because two things already do: git
+stores the history, and <a href="/atomik-ssg/deploying/"><code>base_path</code></a> lets a site live in a
+subdirectory.</p>
+<pre><code class="language-bash">git checkout v0.2.0
+atomik-ssg build      # version = &quot;0.2.0&quot;, base_path = &quot;/v0.2.0&quot;,
+                      # output_dir = &quot;site/v0.2.0&quot;
+
+git checkout main
+atomik-ssg build      # version = &quot;0.3.0&quot;, base_path = &quot;&quot;,
+                      # output_dir = &quot;site&quot;
+</code></pre>
+<p>The result is the current documentation at the root and each older release
+under its own path:</p>
+<pre><code>site/
+├── index.html          ← 0.3.0
+├── guide/
+└── v0.2.0/
+    ├── index.html      ← 0.2.0
+    └── guide/
+</code></pre>
+<h2>A switcher between them</h2>
+<p>The generator does not build one, because only you know which versions exist
+and which are worth keeping. It is a few lines in the theme, edited when you
+cut a release:</p>
+<pre><code class="language-html">&lt;select onchange=&quot;location.href=this.value&quot;&gt;
+  &lt;option value=&quot;/&quot;&gt;0.3.0&lt;/option&gt;
+  &lt;option value=&quot;/v0.2.0/&quot;&gt;0.2.0&lt;/option&gt;
+&lt;/select&gt;
+</code></pre>
+<blockquote class="callout callout-note">
+<p>This is where documentation tools tend to grow. Snapshot commands, banners
+warning that a page is outdated, cross-version link rewriting and canonical
+URLs are the largest source of complexity in the tools that offer them.
+Directories and a <code>&lt;select&gt;</code> cover the same ground for a project this size.</p>
+</blockquote>
+<h2>Warning readers off an old page</h2>
+<p>Set <code>built_with</code>, <code>edit_url</code> and the rest per version as usual — the config is
+part of the checkout, so each version carries its own. If you want a banner on
+older versions, add it to that version's template when you build it, or leave
+a line in its <code>index.md</code>:</p>
+<pre><code class="language-markdown">&gt; [!WARNING]
+&gt; This documents 0.2.0. The current release is [0.3.0](/).
+</code></pre>
+
+            </article>
+            <nav class="post-nav">
+                <a class="prev" href="/atomik-ssg/guide/themes/">Themes</a>
+                <a class="next" href="/atomik-ssg/reference/">Reference</a>
+            </nav>
+            <a class="edit" href="">Edit this page</a>
+        </main>
+    </div>
+    <script>
+    (function () {
+        var here = location.pathname;
+        document.querySelectorAll('.sidebar > ul a').forEach(function (a) {
+            if (a.getAttribute('href') === here) a.classList.add('active');
+        });
+
+        var root = document.documentElement;
+        var button = document.querySelector('.theme-toggle');
+        if (button) button.addEventListener('click', function () {
+            /* No stored choice yet means we are following the system. */
+            var now = root.getAttribute('data-theme') ||
+                (matchMedia('(prefers-color-scheme: dark)').matches
+                    ? 'dark' : 'light');
+            var next = now === 'dark' ? 'light' : 'dark';
+            root.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+        });
+    })();
+    </script>
+</body>
+</html>

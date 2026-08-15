@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Content Model</title>
+    <meta name="description" content="How files become URLs">
+    <link rel="stylesheet" href="/atomik-ssg/style.css">
+    <script>
+    /* Runs before the first paint, so a reader who chose a scheme never
+       sees the other one flash first. */
+    (function () {
+        var t = localStorage.getItem('theme');
+        if (t) document.documentElement.setAttribute('data-theme', t);
+    })();
+    </script>
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="/atomik-ssg/">atomik-ssg</a>
+        <span class="version">1.0.0</span>
+        <button class="theme-toggle" type="button"
+                aria-label="Switch between light and dark">
+            <span class="in-light">Dark</span>
+            <span class="in-dark">Light</span>
+        </button>
+    </header>
+    <div class="layout">
+        <aside class="sidebar">
+            <ul><li><a href="/atomik-ssg/installation/">Installation</a></li><li><a href="/atomik-ssg/quick-start/">Quick Start</a></li><li><a href="/atomik-ssg/guide/">Guide</a><ul><li><a href="/atomik-ssg/guide/content-model/">Content Model</a></li><li><a href="/atomik-ssg/guide/frontmatter/">Frontmatter</a></li><li><a href="/atomik-ssg/guide/navigation/">Navigation</a></li><li><a href="/atomik-ssg/guide/drafts/">Drafts</a></li><li><a href="/atomik-ssg/guide/markdown/">Markdown Support</a></li><li><a href="/atomik-ssg/guide/themes/">Themes</a></li><li><a href="/atomik-ssg/guide/versions/">Versions</a></li></ul></li><li><a href="/atomik-ssg/reference/">Reference</a><ul><li><a href="/atomik-ssg/reference/commands/">Commands</a></li><li><a href="/atomik-ssg/reference/configuration/">Configuration</a></li><li><a href="/atomik-ssg/reference/template-variables/">Template Variables</a></li></ul></li><li><a href="/atomik-ssg/deploying/">Deploying</a></li><li><a href="/atomik-ssg/colophon/">Colophon</a></li></ul>
+            <footer class="site-footer"><a href="https://github.com/yavuzselimsahin/atomik-ssg">Generated with atomik-ssg</a></footer>
+        </aside>
+        <main>
+            <article>
+                <h1>Content Model</h1>
+                <p>atomik-ssg has exactly two kinds of content, and which one you get depends only
+on where the file sits.</p>
+<h2>Posts</h2>
+<p>Markdown under <code>content/posts/</code> is a <strong>post</strong>. Posts are dated, listed newest
+first on the index page, and carry an entry in the RSS feed.</p>
+<pre><code>content/posts/2026-08-10-hello-world.md   →   /posts/hello-world/
+</code></pre>
+<h2>Pages</h2>
+<p>Markdown anywhere else under <code>content/</code> is a <strong>page</strong>. Pages are not dated, do
+not appear in the feed, and are linked from the site menu instead.</p>
+<pre><code>content/about.md                →   /about/
+content/guide/navigation.md     →   /guide/navigation/
+content/guide/index.md          →   /guide/
+</code></pre>
+<p>That is the whole distinction. There is no front-matter switch and no list of
+routes: the location of the file <em>is</em> the URL.</p>
+<h2>Sections</h2>
+<p>Directories nest as deeply as you like, and each one becomes a section.</p>
+<p>Giving a directory an <code>index.md</code> makes the section itself a page — that is how
+<code>/guide/</code> above became a real URL rather than just a heading. Leave it out and
+the section is a heading over its children, which is useful when you want to
+group pages without writing a landing page for the group.</p>
+<h2>Slugs</h2>
+<p>The URL segment comes from the file name: lowercased, with anything that is not
+a letter, digit or dash collapsed into a single dash. Accented and non-Latin
+letters are transliterated rather than dropped, so</p>
+<pre><code>content/Yapılandırma.md   →   /yapilandirma/
+content/Çöp Kutusu.md     →   /cop-kutusu/
+</code></pre>
+<p>A post's file name may carry a <code>YYYY-MM-DD-</code> prefix; it is used as the date and
+stripped from the slug.</p>
+<p>Set <code>slug:</code> in the frontmatter to override the last segment:</p>
+<pre><code class="language-markdown">---
+title: Installation Instructions
+slug: install
+---
+</code></pre>
+<p>Slugs are always normalised, whether they came from a file name or from
+frontmatter, so a slug can never contain a path separator and can never escape
+the output directory.</p>
+<h2>Output</h2>
+<p>A build writes one directory per entry, each holding an <code>index.html</code>:</p>
+<pre><code>public/
+├── index.html
+├── rss.xml
+├── about/index.html
+├── guide/index.html
+├── guide/navigation/index.html
+└── posts/hello-world/index.html
+</code></pre>
+<p>This is why every URL ends in a slash. The development server redirects
+<code>/about</code> to <code>/about/</code> for you; most static hosts do the same.</p>
+
+            </article>
+            <nav class="post-nav">
+                <a class="prev" href="/atomik-ssg/guide/">Guide</a>
+                <a class="next" href="/atomik-ssg/guide/frontmatter/">Frontmatter</a>
+            </nav>
+            <a class="edit" href="">Edit this page</a>
+        </main>
+    </div>
+    <script>
+    (function () {
+        var here = location.pathname;
+        document.querySelectorAll('.sidebar > ul a').forEach(function (a) {
+            if (a.getAttribute('href') === here) a.classList.add('active');
+        });
+
+        var root = document.documentElement;
+        var button = document.querySelector('.theme-toggle');
+        if (button) button.addEventListener('click', function () {
+            /* No stored choice yet means we are following the system. */
+            var now = root.getAttribute('data-theme') ||
+                (matchMedia('(prefers-color-scheme: dark)').matches
+                    ? 'dark' : 'light');
+            var next = now === 'dark' ? 'light' : 'dark';
+            root.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+        });
+    })();
+    </script>
+</body>
+</html>

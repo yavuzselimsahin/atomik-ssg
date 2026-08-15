@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuration</title>
+    <meta name="description" content="Every key in config.toml">
+    <link rel="stylesheet" href="/atomik-ssg/style.css">
+    <script>
+    /* Runs before the first paint, so a reader who chose a scheme never
+       sees the other one flash first. */
+    (function () {
+        var t = localStorage.getItem('theme');
+        if (t) document.documentElement.setAttribute('data-theme', t);
+    })();
+    </script>
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="/atomik-ssg/">atomik-ssg</a>
+        <span class="version">1.0.0</span>
+        <button class="theme-toggle" type="button"
+                aria-label="Switch between light and dark">
+            <span class="in-light">Dark</span>
+            <span class="in-dark">Light</span>
+        </button>
+    </header>
+    <div class="layout">
+        <aside class="sidebar">
+            <ul><li><a href="/atomik-ssg/installation/">Installation</a></li><li><a href="/atomik-ssg/quick-start/">Quick Start</a></li><li><a href="/atomik-ssg/guide/">Guide</a><ul><li><a href="/atomik-ssg/guide/content-model/">Content Model</a></li><li><a href="/atomik-ssg/guide/frontmatter/">Frontmatter</a></li><li><a href="/atomik-ssg/guide/navigation/">Navigation</a></li><li><a href="/atomik-ssg/guide/drafts/">Drafts</a></li><li><a href="/atomik-ssg/guide/markdown/">Markdown Support</a></li><li><a href="/atomik-ssg/guide/themes/">Themes</a></li><li><a href="/atomik-ssg/guide/versions/">Versions</a></li></ul></li><li><a href="/atomik-ssg/reference/">Reference</a><ul><li><a href="/atomik-ssg/reference/commands/">Commands</a></li><li><a href="/atomik-ssg/reference/configuration/">Configuration</a></li><li><a href="/atomik-ssg/reference/template-variables/">Template Variables</a></li></ul></li><li><a href="/atomik-ssg/deploying/">Deploying</a></li><li><a href="/atomik-ssg/colophon/">Colophon</a></li></ul>
+            <footer class="site-footer"><a href="https://github.com/yavuzselimsahin/atomik-ssg">Generated with atomik-ssg</a></footer>
+        </aside>
+        <main>
+            <article>
+                <h1>Configuration</h1>
+                <p><code>config.toml</code> sits at the root of a project. Every key is optional.</p>
+<pre><code class="language-toml">title       = &quot;My Site&quot;
+description = &quot;What it is about&quot;
+base_url    = &quot;https://example.com&quot;
+author      = &quot;Your Name&quot;
+theme       = &quot;docs&quot;
+version     = &quot;1.0.0&quot;
+edit_url    = &quot;https://github.com/you/project/edit/main&quot;
+base_path   = &quot;/project&quot;
+built_with  = true
+
+[build]
+output_dir = &quot;public&quot;
+
+[server]
+port = 4545
+
+[deploy]
+host = &quot;user@vps&quot;
+path = &quot;/var/www/mysite&quot;
+</code></pre>
+<h2>Identity</h2>
+<ul>
+<li><strong><code>title</code></strong> — the site name. Available to templates as <code>{{site_title}}</code>, and
+used as the feed title.</li>
+<li><strong><code>description</code></strong> — a one-line summary. Available as <code>{{site_description}}</code>.</li>
+<li><strong><code>author</code></strong> — recorded for your own use; <code>init</code> also uses it to prefill an
+About page.</li>
+<li><strong><code>version</code></strong> — the release this documentation describes. The docs theme
+prints it next to the site name. Unset, nothing appears.</li>
+</ul>
+<h2>Addresses</h2>
+<ul>
+<li><strong><code>base_url</code></strong> — the public address of the finished site, used to build the
+absolute links in the RSS feed. A trailing slash is trimmed for you.</li>
+<li><strong><code>base_path</code></strong> — the subdirectory the site is served from, such as
+<code>/my-project</code> on GitHub project pages. Every link the generator writes is
+prefixed with it, and so are the root-absolute links you write in markdown,
+so <code>[Guide](/guide/)</code> keeps working. Templates get it as <code>{{base_path}}</code>,
+which is how the bundled themes reach the stylesheet. Leave it unset for a
+domain root, and include the same path in <code>base_url</code>.</li>
+</ul>
+<blockquote class="callout callout-warning">
+<p>A top-level key has to appear <strong>before</strong> the first <code>[section]</code> header.
+Appending <code>base_path</code> to the end of the file would place it inside whichever
+section came last, where nothing is looking for it.</p>
+</blockquote>
+<h2>Appearance</h2>
+<ul>
+<li><strong><code>theme</code></strong> — the directory name under <code>themes/</code>. A value containing a path
+separator is rejected and the default is used instead.</li>
+<li><strong><code>edit_url</code></strong> — a base URL that a page's source path is appended to, which
+is how the docs theme offers &quot;Edit this page&quot;. Unset, and the themes hide
+the link rather than showing a dead one.</li>
+<li><strong><code>built_with</code></strong> — <code>true</code> adds a quiet line noting that the site was
+generated with atomik-ssg, linked to the project. <code>init</code> writes it enabled;
+comment the line out to remove it. An absent key counts as off, so nothing
+is added to a site that never asked for it.</li>
+</ul>
+<h2><code>[build]</code></h2>
+<ul>
+<li><strong><code>output_dir</code></strong> — where the site is written. Defaults to <code>public</code>. Like
+<code>theme</code>, it must be a plain directory name.</li>
+</ul>
+<h2><code>[server]</code></h2>
+<ul>
+<li><strong><code>port</code></strong> — the port <code>serve</code> uses when none is given on the command line.
+Defaults to 4545.</li>
+</ul>
+<h2><code>[deploy]</code></h2>
+<ul>
+<li><strong><code>host</code></strong> — an rsync or SSH destination, such as <code>user@example.com</code>.</li>
+<li><strong><code>path</code></strong> — the directory on that host to mirror into.</li>
+</ul>
+<p>Both values are quoted before they reach the shell, so a stray character in
+them cannot turn into a command.</p>
+<h2>Notes on the format</h2>
+<p>The parser handles the subset of TOML this tool needs: comments beginning with
+<code>#</code>, <code>key = value</code> pairs, quoted or bare values, and <code>[section]</code> headers.</p>
+
+            </article>
+            <nav class="post-nav">
+                <a class="prev" href="/atomik-ssg/reference/commands/">Commands</a>
+                <a class="next" href="/atomik-ssg/reference/template-variables/">Template Variables</a>
+            </nav>
+            <a class="edit" href="">Edit this page</a>
+        </main>
+    </div>
+    <script>
+    (function () {
+        var here = location.pathname;
+        document.querySelectorAll('.sidebar > ul a').forEach(function (a) {
+            if (a.getAttribute('href') === here) a.classList.add('active');
+        });
+
+        var root = document.documentElement;
+        var button = document.querySelector('.theme-toggle');
+        if (button) button.addEventListener('click', function () {
+            /* No stored choice yet means we are following the system. */
+            var now = root.getAttribute('data-theme') ||
+                (matchMedia('(prefers-color-scheme: dark)').matches
+                    ? 'dark' : 'light');
+            var next = now === 'dark' ? 'light' : 'dark';
+            root.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+        });
+    })();
+    </script>
+</body>
+</html>

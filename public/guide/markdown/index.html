@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown Support</title>
+    <meta name="description" content="What the parser does and does not do">
+    <link rel="stylesheet" href="/atomik-ssg/style.css">
+    <script>
+    /* Runs before the first paint, so a reader who chose a scheme never
+       sees the other one flash first. */
+    (function () {
+        var t = localStorage.getItem('theme');
+        if (t) document.documentElement.setAttribute('data-theme', t);
+    })();
+    </script>
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="/atomik-ssg/">atomik-ssg</a>
+        <span class="version">1.0.0</span>
+        <button class="theme-toggle" type="button"
+                aria-label="Switch between light and dark">
+            <span class="in-light">Dark</span>
+            <span class="in-dark">Light</span>
+        </button>
+    </header>
+    <div class="layout">
+        <aside class="sidebar">
+            <ul><li><a href="/atomik-ssg/installation/">Installation</a></li><li><a href="/atomik-ssg/quick-start/">Quick Start</a></li><li><a href="/atomik-ssg/guide/">Guide</a><ul><li><a href="/atomik-ssg/guide/content-model/">Content Model</a></li><li><a href="/atomik-ssg/guide/frontmatter/">Frontmatter</a></li><li><a href="/atomik-ssg/guide/navigation/">Navigation</a></li><li><a href="/atomik-ssg/guide/drafts/">Drafts</a></li><li><a href="/atomik-ssg/guide/markdown/">Markdown Support</a></li><li><a href="/atomik-ssg/guide/themes/">Themes</a></li><li><a href="/atomik-ssg/guide/versions/">Versions</a></li></ul></li><li><a href="/atomik-ssg/reference/">Reference</a><ul><li><a href="/atomik-ssg/reference/commands/">Commands</a></li><li><a href="/atomik-ssg/reference/configuration/">Configuration</a></li><li><a href="/atomik-ssg/reference/template-variables/">Template Variables</a></li></ul></li><li><a href="/atomik-ssg/deploying/">Deploying</a></li><li><a href="/atomik-ssg/colophon/">Colophon</a></li></ul>
+            <footer class="site-footer"><a href="https://github.com/yavuzselimsahin/atomik-ssg">Generated with atomik-ssg</a></footer>
+        </aside>
+        <main>
+            <article>
+                <h1>Markdown Support</h1>
+                <p>Markdown is rendered by <a href="https://github.com/commonmark/cmark">cmark</a>, the
+reference implementation of <a href="https://commonmark.org">CommonMark</a>. It is
+compiled into the binary, so there is nothing to install and no version skew
+between machines.</p>
+<h2>What works</h2>
+<p>Everything in the CommonMark specification: headings, emphasis, lists, links,
+images, blockquotes, fenced and indented code blocks, thematic breaks,
+reference links, HTML blocks, hard line breaks, and entity references.</p>
+<h2>Raw HTML</h2>
+<p>Raw HTML in your markdown is passed straight through:</p>
+<pre><code class="language-markdown">Some text.
+
+&lt;figure&gt;
+  &lt;img src=&quot;/images/diagram.png&quot; alt=&quot;&quot;&gt;
+  &lt;figcaption&gt;A diagram&lt;/figcaption&gt;
+&lt;/figure&gt;
+</code></pre>
+<p>cmark suppresses raw HTML by default, as a guard against markdown submitted by
+strangers. Here the markdown is your own, and silently deleting your <code>&lt;iframe&gt;</code>
+would be the surprising behaviour, so it is enabled.</p>
+<h2>What does not work</h2>
+<p>GitHub's extensions are <strong>not</strong> part of CommonMark and are not available:</p>
+<ul>
+<li>pipe tables</li>
+<li><code>~~strikethrough~~</code></li>
+<li>bare-URL autolinks — write <code>&lt;https://example.com&gt;</code> or a normal link</li>
+<li>task list checkboxes</li>
+<li>footnotes</li>
+</ul>
+<p>These render as literal text rather than failing loudly, which is worth
+knowing before you paste in something written for GitHub.</p>
+<h2>Callouts</h2>
+<p>GitHub's alert syntax is recognised, even though CommonMark treats it as an
+ordinary quote:</p>
+<pre><code class="language-markdown">&gt; [!WARNING]
+&gt; This removes files on the far end.
+</code></pre>
+<blockquote class="callout callout-warning">
+<p>That block produced this box.</p>
+</blockquote>
+<p>Five kinds are available: <code>NOTE</code>, <code>TIP</code>, <code>IMPORTANT</code>, <code>WARNING</code> and <code>CAUTION</code>.
+Anything else is left as a plain quote with the marker intact, so a
+misspelling shows up instead of disappearing.</p>
+<blockquote class="callout callout-tip">
+<p>The label comes from the theme's CSS, not the HTML, so changing or
+translating it is one line in the stylesheet.</p>
+</blockquote>
+<h2>Tables, in the meantime</h2>
+<p>Because raw HTML passes through, a table can be written directly:</p>
+<table>
+  <tr><th>Command</th><th>Does</th></tr>
+  <tr><td><code>build</code></td><td>Generates the site</td></tr>
+  <tr><td><code>serve</code></td><td>Previews it locally</td></tr>
+</table>
+<p>That table is HTML inside a markdown file, on this page, in this site. It is
+more typing than a pipe table, and it is the honest workaround until the parser
+gains table support.</p>
+
+            </article>
+            <nav class="post-nav">
+                <a class="prev" href="/atomik-ssg/guide/drafts/">Drafts</a>
+                <a class="next" href="/atomik-ssg/guide/themes/">Themes</a>
+            </nav>
+            <a class="edit" href="">Edit this page</a>
+        </main>
+    </div>
+    <script>
+    (function () {
+        var here = location.pathname;
+        document.querySelectorAll('.sidebar > ul a').forEach(function (a) {
+            if (a.getAttribute('href') === here) a.classList.add('active');
+        });
+
+        var root = document.documentElement;
+        var button = document.querySelector('.theme-toggle');
+        if (button) button.addEventListener('click', function () {
+            /* No stored choice yet means we are following the system. */
+            var now = root.getAttribute('data-theme') ||
+                (matchMedia('(prefers-color-scheme: dark)').matches
+                    ? 'dark' : 'light');
+            var next = now === 'dark' ? 'light' : 'dark';
+            root.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+        });
+    })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deploying</title>
+    <meta name="description" content="Getting the output onto a server">
+    <link rel="stylesheet" href="/atomik-ssg/style.css">
+    <script>
+    /* Runs before the first paint, so a reader who chose a scheme never
+       sees the other one flash first. */
+    (function () {
+        var t = localStorage.getItem('theme');
+        if (t) document.documentElement.setAttribute('data-theme', t);
+    })();
+    </script>
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="/atomik-ssg/">atomik-ssg</a>
+        <span class="version">1.0.0</span>
+        <button class="theme-toggle" type="button"
+                aria-label="Switch between light and dark">
+            <span class="in-light">Dark</span>
+            <span class="in-dark">Light</span>
+        </button>
+    </header>
+    <div class="layout">
+        <aside class="sidebar">
+            <ul><li><a href="/atomik-ssg/installation/">Installation</a></li><li><a href="/atomik-ssg/quick-start/">Quick Start</a></li><li><a href="/atomik-ssg/guide/">Guide</a><ul><li><a href="/atomik-ssg/guide/content-model/">Content Model</a></li><li><a href="/atomik-ssg/guide/frontmatter/">Frontmatter</a></li><li><a href="/atomik-ssg/guide/navigation/">Navigation</a></li><li><a href="/atomik-ssg/guide/drafts/">Drafts</a></li><li><a href="/atomik-ssg/guide/markdown/">Markdown Support</a></li><li><a href="/atomik-ssg/guide/themes/">Themes</a></li><li><a href="/atomik-ssg/guide/versions/">Versions</a></li></ul></li><li><a href="/atomik-ssg/reference/">Reference</a><ul><li><a href="/atomik-ssg/reference/commands/">Commands</a></li><li><a href="/atomik-ssg/reference/configuration/">Configuration</a></li><li><a href="/atomik-ssg/reference/template-variables/">Template Variables</a></li></ul></li><li><a href="/atomik-ssg/deploying/">Deploying</a></li><li><a href="/atomik-ssg/colophon/">Colophon</a></li></ul>
+            <footer class="site-footer"><a href="https://github.com/yavuzselimsahin/atomik-ssg">Generated with atomik-ssg</a></footer>
+        </aside>
+        <main>
+            <article>
+                <h1>Deploying</h1>
+                <p>A build produces plain files in <code>public/</code>. Anything that can serve a directory
+can serve them: a VPS, GitHub Pages, Netlify, Cloudflare Pages, S3, or a
+Raspberry Pi in a cupboard.</p>
+<h2>With the built-in deploy</h2>
+<p>Set the target in <code>config.toml</code>:</p>
+<pre><code class="language-toml">[deploy]
+host = &quot;user@example.com&quot;
+path = &quot;/var/www/mysite&quot;
+</code></pre>
+<p>Then:</p>
+<pre><code class="language-bash">atomik-ssg deploy
+</code></pre>
+<p>This builds first, shows you the exact <code>rsync</code> command, and asks before running
+it. The confirmation is there because the command uses <code>--delete</code>, which
+removes files on the far end that are not in your output — exactly what you
+want for a mirror, and exactly what you want to be sure about first.</p>
+<p>Authentication is whatever your SSH configuration already does; atomik-ssg
+neither asks for nor stores credentials.</p>
+<h2>By hand</h2>
+<p><code>deploy</code> is a convenience, not a requirement. There is nothing special about
+the output:</p>
+<pre><code class="language-bash">atomik-ssg build
+rsync -avz --delete public/ user@example.com:/var/www/mysite/
+</code></pre>
+<h2>On GitHub Pages</h2>
+<p>A user or organisation site (<code>you.github.io</code>) is served from a domain root, so
+it needs nothing special.</p>
+<p>A project site is served from a subdirectory (<code>you.github.io/project/</code>), so
+tell the generator where it will live:</p>
+<pre><code class="language-toml">base_path = &quot;/project&quot;
+base_url  = &quot;https://you.github.io/project&quot;
+</code></pre>
+<p>Every link is then written with that prefix. Without it the pages load but the
+stylesheet and every internal link resolve against the domain root and 404.</p>
+<h2>In CI</h2>
+<p>Because the binary has no runtime dependencies, a CI job needs no toolchain
+beyond a C compiler:</p>
+<pre><code class="language-yaml">- run: make
+- run: ./atomik-ssg build
+- run: rsync -avz --delete public/ &quot;$TARGET&quot;
+</code></pre>
+<h2>Before you go live</h2>
+<ul>
+<li>Set <code>base_url</code> to the real address. The RSS feed builds absolute links from
+it, and a placeholder there produces a feed pointing at <code>localhost</code>.</li>
+<li>Build without <code>--drafts</code>, so nothing unfinished ships.</li>
+<li>Point your host at <code>public/</code>, not at the project root — the project root also
+contains your sources.</li>
+</ul>
+
+            </article>
+            <nav class="post-nav">
+                <a class="prev" href="/atomik-ssg/reference/template-variables/">Template Variables</a>
+                <a class="next" href="/atomik-ssg/colophon/">Colophon</a>
+            </nav>
+            <a class="edit" href="">Edit this page</a>
+        </main>
+    </div>
+    <script>
+    (function () {
+        var here = location.pathname;
+        document.querySelectorAll('.sidebar > ul a').forEach(function (a) {
+            if (a.getAttribute('href') === here) a.classList.add('active');
+        });
+
+        var root = document.documentElement;
+        var button = document.querySelector('.theme-toggle');
+        if (button) button.addEventListener('click', function () {
+            /* No stored choice yet means we are following the system. */
+            var now = root.getAttribute('data-theme') ||
+                (matchMedia('(prefers-color-scheme: dark)').matches
+                    ? 'dark' : 'light');
+            var next = now === 'dark' ? 'light' : 'dark';
+            root.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+        });
+    })();
+    </script>
+</body>
+</html>

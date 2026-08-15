@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Colophon</title>
+    <meta name="description" content="How this site is made">
+    <link rel="stylesheet" href="/atomik-ssg/style.css">
+    <script>
+    /* Runs before the first paint, so a reader who chose a scheme never
+       sees the other one flash first. */
+    (function () {
+        var t = localStorage.getItem('theme');
+        if (t) document.documentElement.setAttribute('data-theme', t);
+    })();
+    </script>
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="/atomik-ssg/">atomik-ssg</a>
+        <span class="version">1.0.0</span>
+        <button class="theme-toggle" type="button"
+                aria-label="Switch between light and dark">
+            <span class="in-light">Dark</span>
+            <span class="in-dark">Light</span>
+        </button>
+    </header>
+    <div class="layout">
+        <aside class="sidebar">
+            <ul><li><a href="/atomik-ssg/installation/">Installation</a></li><li><a href="/atomik-ssg/quick-start/">Quick Start</a></li><li><a href="/atomik-ssg/guide/">Guide</a><ul><li><a href="/atomik-ssg/guide/content-model/">Content Model</a></li><li><a href="/atomik-ssg/guide/frontmatter/">Frontmatter</a></li><li><a href="/atomik-ssg/guide/navigation/">Navigation</a></li><li><a href="/atomik-ssg/guide/drafts/">Drafts</a></li><li><a href="/atomik-ssg/guide/markdown/">Markdown Support</a></li><li><a href="/atomik-ssg/guide/themes/">Themes</a></li><li><a href="/atomik-ssg/guide/versions/">Versions</a></li></ul></li><li><a href="/atomik-ssg/reference/">Reference</a><ul><li><a href="/atomik-ssg/reference/commands/">Commands</a></li><li><a href="/atomik-ssg/reference/configuration/">Configuration</a></li><li><a href="/atomik-ssg/reference/template-variables/">Template Variables</a></li></ul></li><li><a href="/atomik-ssg/deploying/">Deploying</a></li><li><a href="/atomik-ssg/colophon/">Colophon</a></li></ul>
+            <footer class="site-footer"><a href="https://github.com/yavuzselimsahin/atomik-ssg">Generated with atomik-ssg</a></footer>
+        </aside>
+        <main>
+            <article>
+                <h1>Colophon</h1>
+                <p>This site is built with atomik-ssg.</p>
+<p>Not &quot;powered by&quot; in the badge sense — it is a plain atomik-ssg project. The
+pages you are reading are markdown files in a <code>content/</code> directory, arranged
+into the sections you see in the sidebar. It was created with <code>atomik-ssg init</code> using the bundled <code>docs</code> theme, and it is rebuilt with <code>atomik-ssg build</code>.</p>
+<p>Everything in the navigation is a consequence of the file layout:</p>
+<pre><code>content/
+├── installation.md
+├── quick-start.md
+├── guide/
+│   ├── index.md
+│   ├── content-model.md
+│   ├── frontmatter.md
+│   ├── navigation.md
+│   ├── markdown.md
+│   ├── drafts.md
+│   ├── themes.md
+│   └── versions.md
+├── reference/
+│   ├── index.md
+│   ├── commands.md
+│   ├── configuration.md
+│   └── template-variables.md
+├── deploying.md
+└── colophon.md
+</code></pre>
+<p>The sidebar is generated from that tree, the previous/next links at the foot
+of each page follow it top to bottom, and the order of the sections comes from
+an <code>order:</code> field in each file's frontmatter. No list of pages is maintained
+anywhere.</p>
+<h2>What else is on display</h2>
+<ul>
+<li>The version badge beside the site name is <code>version</code> in <code>config.toml</code>.</li>
+<li>The light/dark switch in the top bar is part of the docs theme.</li>
+<li>The boxes on <a href="/atomik-ssg/guide/markdown/">Markdown Support</a> and elsewhere are
+callouts, written as <code>&gt; [!NOTE]</code> in the markdown.</li>
+<li>The line at the foot of the sidebar is <code>built_with = true</code>. Commenting that
+one line out removes it.</li>
+</ul>
+<h2>What it demonstrates, and what it admits</h2>
+<p>Documentation is a fair test of a static site generator, because it needs what
+a blog does not: a hierarchy, a reading order, a sidebar that stays correct as
+pages come and go. This site is the tool doing the job it claims to do.</p>
+<p>It shows the limits just as plainly. The table on
+<a href="/atomik-ssg/guide/markdown/">Markdown Support</a> is written as raw HTML, because the
+bundled parser is strict CommonMark and does not do pipe tables. Code samples
+are not syntax highlighted, because no highlighter ships in the binary. Both
+are real constraints of this version, visible here rather than hidden.</p>
+<h2>The numbers</h2>
+<ul>
+<li>The generator is a single binary of roughly 285 KB with no runtime
+dependencies.</li>
+<li>Building this site takes a few milliseconds.</li>
+<li>At 5000 pages a full rebuild takes about a second, most of it spent writing
+files rather than parsing markdown.</li>
+</ul>
+<h2>Source</h2>
+<p>atomik-ssg is written in C and lives at
+<a href="https://github.com/yavuzselimsahin/atomik-ssg">github.com/yavuzselimsahin/atomik-ssg</a>,
+under the MIT licence.</p>
+
+            </article>
+            <nav class="post-nav">
+                <a class="prev" href="/atomik-ssg/deploying/">Deploying</a>
+                <a class="next" href=""></a>
+            </nav>
+            <a class="edit" href="">Edit this page</a>
+        </main>
+    </div>
+    <script>
+    (function () {
+        var here = location.pathname;
+        document.querySelectorAll('.sidebar > ul a').forEach(function (a) {
+            if (a.getAttribute('href') === here) a.classList.add('active');
+        });
+
+        var root = document.documentElement;
+        var button = document.querySelector('.theme-toggle');
+        if (button) button.addEventListener('click', function () {
+            /* No stored choice yet means we are following the system. */
+            var now = root.getAttribute('data-theme') ||
+                (matchMedia('(prefers-color-scheme: dark)').matches
+                    ? 'dark' : 'light');
+            var next = now === 'dark' ? 'light' : 'dark';
+            root.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+        });
+    })();
+    </script>
+</body>
+</html>
