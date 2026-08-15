@@ -179,7 +179,7 @@ void cmd_build(void) {
 
     char posts_dir[512];
     snprintf(posts_dir, sizeof(posts_dir), "%s/posts", g_output_dir);
-    if (make_dir(g_output_dir) != 0 || make_dir(posts_dir) != 0) {
+    if (make_dir_p(g_output_dir) != 0 || make_dir_p(posts_dir) != 0) {
         perror(g_output_dir);
         postlist_free(&list);
         return;

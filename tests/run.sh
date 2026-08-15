@@ -243,6 +243,16 @@ group "Config"
 printf 'title = "T"\ntheme = "dark"\n\n[build]\noutput_dir = "docs"\n\n[server]\nport = %s\n' "$PORT" > config.toml
 "$BIN" build >/dev/null 2>&1
 [ -f docs/index.html ] && ok "[build] output_dir honoured" || bad "output_dir ignored"
+# a nested output_dir has to work, and still may not climb out of the project
+printf 'title = "T"\n\n[build]\noutput_dir = "site/manual"\n' > config.toml
+"$BIN" build >/dev/null 2>&1
+[ -f site/manual/index.html ] && ok "nested output_dir honoured" || bad "nested output_dir ignored"
+printf 'title = "T"\n\n[build]\noutput_dir = "../escape"\n' > config.toml
+"$BIN" build 2>&1 | grep -q 'invalid output_dir' && ok "climbing output_dir rejected" || bad "climbing output_dir accepted"
+printf 'title = "T"\n\n[build]\noutput_dir = "/abs"\n' > config.toml
+"$BIN" build 2>&1 | grep -q 'invalid output_dir' && ok "absolute output_dir rejected" || bad "absolute output_dir accepted"
+cp good.toml config.toml 2>/dev/null || printf 'title = "T"\ntheme = "dark"\n\n[build]\noutput_dir = "docs"\n\n[server]\nport = %s\n' "$PORT" > config.toml
+"$BIN" build >/dev/null 2>&1
 [ -f docs/rss.xml ]    && ok "rss follows output_dir"      || bad "rss ignores output_dir"
 printf 'theme = "../../etc"\n' > bad.toml
 cp config.toml good.toml && cp bad.toml config.toml

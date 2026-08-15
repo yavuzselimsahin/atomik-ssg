@@ -31,6 +31,20 @@ char    g_version[64]                  = "";
 
 #define DEFAULT_PORT 4545
 
+/* An output directory may be nested ("docs/manual"), but it still has to stay
+   inside the project: no absolute paths, no climbing out. */
+static int is_safe_relpath(const char *s) {
+    if (!s || !*s) return 0;
+    if (*s == '/' || strchr(s, '\\')) return 0;
+
+    char buf[256];
+    if (snprintf(buf, sizeof(buf), "%s", s) >= (int)sizeof(buf)) return 0;
+
+    for (char *tok = strtok(buf, "/"); tok; tok = strtok(NULL, "/"))
+        if (strcmp(tok, "..") == 0 || strcmp(tok, ".") == 0) return 0;
+    return 1;
+}
+
 /* A config value that becomes part of a path must not contain separators. */
 static int is_plain_name(const char *s) {
     if (!s || !*s) return 0;
@@ -55,11 +69,13 @@ static void load_config(int quiet) {
     snprintf(g_theme_path, sizeof(g_theme_path), "themes/%s", theme);
 
     const char *out = toml_get_or(&g_toml, "build", "output_dir", "public");
-    if (!is_plain_name(out)) {
+    if (!is_safe_relpath(out)) {
         fprintf(stderr, "Warning: invalid output_dir \"%s\", using public\n", out);
         out = "public";
     }
     snprintf(g_output_dir, sizeof(g_output_dir), "%s", out);
+    size_t olen = strlen(g_output_dir);
+    while (olen > 1 && g_output_dir[olen - 1] == '/') g_output_dir[--olen] = '\0';
 
     snprintf(g_site_title, sizeof(g_site_title), "%s",
              toml_get_or(&g_toml, "", "title", "Atomik SSG"));
