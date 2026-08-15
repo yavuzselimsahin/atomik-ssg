@@ -1,7 +1,7 @@
 ---
 title: Colophon
 description: How this site is made
-order: 8
+order: 7
 ---
 
 This site is built with atomik-ssg.

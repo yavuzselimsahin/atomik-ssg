@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Markdown Support</title>
-    <meta name="description" content="What the parser does and does not do">
+    <title>Example Sites</title>
+    <meta name="description" content="Sites built with atomik-ssg">
     <link rel="stylesheet" href="/atomik-ssg/style.css">
     <script>
     /* Runs before the first paint, so a reader who chose a scheme never
@@ -32,69 +32,62 @@
         </aside>
         <main>
             <article>
-                <h1>Markdown Support</h1>
-                <p>Markdown is rendered by <a href="https://github.com/commonmark/cmark">cmark</a>, the
-reference implementation of <a href="https://commonmark.org">CommonMark</a>. It is
-compiled into the binary, so there is nothing to install and no version skew
-between machines.</p>
-<h2>What works</h2>
-<p>Everything in the CommonMark specification: headings, emphasis, lists, links,
-images, blockquotes, fenced and indented code blocks, thematic breaks,
-reference links, HTML blocks, hard line breaks, and entity references.</p>
-<h2>Raw HTML</h2>
-<p>Raw HTML in your markdown is passed straight through:</p>
-<pre><code class="language-markdown">Some text.
+                <h1>Example Sites</h1>
+                <p>Four sites, each leaning on a different part of the tool.</p>
+<h2>This site</h2>
+<p><a href="https://github.com/yavuzselimsahin/atomik-ssg">https://github.com/yavuzselimsahin/atomik-ssg</a></p>
+<p>The documentation you are reading. The <code>docs</code> theme with no modifications:
+sidebar from <code>{{page_tree}}</code>, reading order for previous and next, a light and
+dark palette with a switch, and the version beside the site name.</p>
+<p>It is also the plainest demonstration of the idea, since a documentation site
+is the hardest thing this generator is asked to do. <a href="/atomik-ssg/colophon/">Colophon</a>
+goes through it in detail, including what it cannot do.</p>
+<h2>atom-builder</h2>
+<p><a href="https://yavuzselimsahin.github.io/atom-builder">https://yavuzselimsahin.github.io/atom-builder</a></p>
+<p>Documentation for a tool that cross-compiles native projects from one machine.
+A project page rather than a domain root, so it sets both halves of the
+subdirectory problem:</p>
+<pre><code class="language-toml">base_url  = &quot;https://yavuzselimsahin.github.io/atom-builder&quot;
+base_path = &quot;/atom-builder&quot;
+</code></pre>
+<p>Without <code>base_path</code> the pages would load and every link and stylesheet would
+404 against the domain root.</p>
+<h2>Shared Clipboard</h2>
+<p><a href="https://yavuzselimsahin.github.io/shared-clipboard/manual/">https://yavuzselimsahin.github.io/shared-clipboard/manual/</a></p>
+<p>A manual for a desktop utility that syncs clipboards over a local network.
+This one is the most interesting deployment of the four, because the
+repository already served a hand-written landing page at
+<code>/shared-clipboard/</code>. GitHub Pages allows one source per repository, so the
+manual is built <em>beside</em> the landing page rather than over it:</p>
+<pre><code class="language-toml">base_path  = &quot;/shared-clipboard/manual&quot;
 
-&lt;figure&gt;
-  &lt;img src=&quot;/images/diagram.png&quot; alt=&quot;&quot;&gt;
-  &lt;figcaption&gt;A diagram&lt;/figcaption&gt;
-&lt;/figure&gt;
+[build]
+output_dir = &quot;docs/manual&quot;
 </code></pre>
-<p>cmark suppresses raw HTML by default, as a guard against markdown submitted by
-strangers. Here the markdown is your own, and silently deleting your <code>&lt;iframe&gt;</code>
-would be the surprising behaviour, so it is enabled.</p>
-<h2>What does not work</h2>
-<p>GitHub's extensions are <strong>not</strong> part of CommonMark and are not available:</p>
-<ul>
-<li>pipe tables</li>
-<li><code>~~strikethrough~~</code></li>
-<li>bare-URL autolinks — write <code>&lt;https://example.com&gt;</code> or a normal link</li>
-<li>task list checkboxes</li>
-<li>footnotes</li>
-</ul>
-<p>These render as literal text rather than failing loudly, which is worth
-knowing before you paste in something written for GitHub.</p>
-<h2>Callouts</h2>
-<p>GitHub's alert syntax is recognised, even though CommonMark treats it as an
-ordinary quote:</p>
-<pre><code class="language-markdown">&gt; [!WARNING]
-&gt; This removes files on the far end.
-</code></pre>
-<blockquote class="callout callout-warning">
-<p>That block produced this box.</p>
-</blockquote>
-<p>Five kinds are available: <code>NOTE</code>, <code>TIP</code>, <code>IMPORTANT</code>, <code>WARNING</code> and <code>CAUTION</code>.
-Anything else is left as a plain quote with the marker intact, so a
-misspelling shows up instead of disappearing.</p>
+<p>The landing page keeps the root and links down into the manual.</p>
+<p>Its <a href="https://yavuzselimsahin.github.io/shared-clipboard/manual/installation/">installation page</a>
+is worth a look for a different reason: the download list highlights the
+reader's operating system, written as plain HTML, CSS and a few lines of
+JavaScript inside the markdown file. The generator knows nothing about
+operating systems, and with JavaScript off the reader still sees every
+platform.</p>
+<h2>yavuzselimsahin.com</h2>
+<p><a href="https://yavuzselimsahin.com">https://yavuzselimsahin.com</a></p>
+<p>A personal site on a custom domain — the blog half of the tool rather than the
+documentation half. Dated posts under <code>content/posts/</code>, a chronological index,
+an RSS feed, and pages such as About sitting alongside them.</p>
+<p>Being at a domain root, it needs no <code>base_path</code> at all.</p>
+<hr />
 <blockquote class="callout callout-tip">
-<p>The label comes from the theme's CSS, not the HTML, so changing or
-translating it is one line in the stylesheet.</p>
+<p>Building something with it? Open an issue on
+<a href="https://github.com/yavuzselimsahin/atomik-ssg">the repository</a> and it can
+go on this page.</p>
 </blockquote>
-<h2>Tables, in the meantime</h2>
-<p>Because raw HTML passes through, a table can be written directly:</p>
-<table>
-  <tr><th>Command</th><th>Does</th></tr>
-  <tr><td><code>build</code></td><td>Generates the site</td></tr>
-  <tr><td><code>serve</code></td><td>Previews it locally</td></tr>
-</table>
-<p>That table is HTML inside a markdown file, on this page, in this site. It is
-more typing than a pipe table, and it is the honest workaround until the parser
-gains table support.</p>
 
             </article>
             <nav class="post-nav">
-                <a class="prev" href="/atomik-ssg/guide/drafts/">Drafts</a>
-                <a class="next" href="/atomik-ssg/guide/themes/">Themes</a>
+                <a class="prev" href="/atomik-ssg/deploying/">Deploying</a>
+                <a class="next" href="/atomik-ssg/colophon/">Colophon</a>
             </nav>
             <a class="edit" href="">Edit this page</a>
         </main>
