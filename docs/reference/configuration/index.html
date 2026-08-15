@@ -45,7 +45,7 @@ base_path   = &quot;/project&quot;
 built_with  = true
 
 [build]
-output_dir = &quot;public&quot;
+output_dir = &quot;public&quot;       # or a nested path such as &quot;docs/manual&quot;
 
 [server]
 port = 4545
@@ -94,8 +94,11 @@ is added to a site that never asked for it.</li>
 </ul>
 <h2><code>[build]</code></h2>
 <ul>
-<li><strong><code>output_dir</code></strong> — where the site is written. Defaults to <code>public</code>. Like
-<code>theme</code>, it must be a plain directory name.</li>
+<li><strong><code>output_dir</code></strong> — where the site is written, relative to the project.
+Defaults to <code>public</code>. It may be nested — <code>docs/manual</code> is what a project
+page needs when a hand-written landing page already occupies the root — and
+every missing level is created for you. Absolute paths and any <code>..</code> segment
+are refused, so a build cannot write outside the project.</li>
 </ul>
 <h2><code>[server]</code></h2>
 <ul>

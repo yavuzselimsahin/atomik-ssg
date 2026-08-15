@@ -18,7 +18,7 @@ base_path   = "/project"
 built_with  = true
 
 [build]
-output_dir = "public"
+output_dir = "public"       # or a nested path such as "docs/manual"
 
 [server]
 port = 4545
@@ -68,8 +68,11 @@ path = "/var/www/mysite"
 
 ## `[build]`
 
-- **`output_dir`** — where the site is written. Defaults to `public`. Like
-  `theme`, it must be a plain directory name.
+- **`output_dir`** — where the site is written, relative to the project.
+  Defaults to `public`. It may be nested — `docs/manual` is what a project
+  page needs when a hand-written landing page already occupies the root — and
+  every missing level is created for you. Absolute paths and any `..` segment
+  are refused, so a build cannot write outside the project.
 
 ## `[server]`
 

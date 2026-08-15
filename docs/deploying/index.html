@@ -67,6 +67,19 @@ base_url  = &quot;https://you.github.io/project&quot;
 </code></pre>
 <p>Every link is then written with that prefix. Without it the pages load but the
 stylesheet and every internal link resolve against the domain root and 404.</p>
+<p>If the repository already serves something at that root — a hand-written
+landing page, say — build the site into a subdirectory beside it rather than
+over it:</p>
+<pre><code class="language-toml">base_path  = &quot;/project/manual&quot;
+base_url   = &quot;https://you.github.io/project/manual&quot;
+
+[build]
+output_dir = &quot;docs/manual&quot;
+</code></pre>
+<p><code>output_dir</code> may be nested, and the missing levels are created for you. The
+landing page keeps <code>/project/</code> and the generated site takes <code>/project/manual/</code>.
+GitHub Pages serves one source per repository, so this is how both live at
+once.</p>
 <h2>In CI</h2>
 <p>Because the binary has no runtime dependencies, a CI job needs no toolchain
 beyond a C compiler:</p>
