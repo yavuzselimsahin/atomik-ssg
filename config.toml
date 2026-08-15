@@ -18,7 +18,7 @@ built_with  = true
 base_path = "/atomik-ssg"
 
 [build]
-output_dir = "public"
+output_dir = "docs"
 
 [server]
 port = 4545
