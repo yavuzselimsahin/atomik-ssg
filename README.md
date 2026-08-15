@@ -250,7 +250,7 @@ theme       = "default"
 built_with  = true
 
 [build]
-output_dir = "public"
+output_dir = "public"       # or a nested path such as "docs/manual"
 
 [server]
 port = 4545
@@ -260,7 +260,7 @@ host = "user@vps"
 path = "/var/www/myblog"
 ```
 
-Two optional keys are worth calling out:
+A few keys are worth calling out:
 
 - **`edit_url`** — a base URL that a page's source path is appended to, which
   is how a theme offers "Edit this page". Unset, and the themes hide the link
@@ -276,6 +276,10 @@ Two optional keys are worth calling out:
 - **`built_with`** — puts a quiet "Generated with atomik-ssg" line in the
   footer of every page, linked to the project. `init` writes it enabled;
   comment the line out to remove it. An absent key counts as off.
+- **`[build] output_dir`** — where the site is written, relative to the
+  project. Defaults to `public`, and may be nested: `docs/manual` is what a
+  project page needs when a landing page already occupies the root. Missing
+  levels are created for you; absolute paths and `..` segments are refused.
 
 Remember that a top-level key has to appear *before* the first `[section]`
 header, or it lands inside whichever section came last.
