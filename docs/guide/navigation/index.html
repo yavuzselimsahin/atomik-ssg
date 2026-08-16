@@ -65,11 +65,15 @@ as a page.</p>
 <h2>Previous and next</h2>
 <p>Every entry carries <code>{{prev_url}}</code>, <code>{{prev_title}}</code>, <code>{{next_url}}</code> and
 <code>{{next_title}}</code>.</p>
-<p>On a <strong>page</strong> these follow the sidebar from top to bottom — the reading order.
-A section leads into its first child, and the last child of a section leads
-into the next section. Reorder the sidebar and they reorder with it.</p>
-<p>On a <strong>post</strong> they follow the dates instead: <code>prev</code> is the older post, <code>next</code>
-is the newer one.</p>
+<p>They are <strong>positional</strong>, in both cases: <code>prev</code> is the entry above the current
+one in the list a reader was just looking at, <code>next</code> is the entry below it.</p>
+<p>On a <strong>page</strong> that list is the sidebar. A section leads into its first child,
+and the last child of a section leads into the next section. Reorder the
+sidebar and they reorder with it.</p>
+<p>On a <strong>post</strong> it is the index listing. Since the index runs newest first,
+<code>next</code> is the older post — the one further down the page the reader clicked
+from. Wiring these to the calendar instead would make &quot;next&quot; point back up
+the list, which is the opposite of what an arrow pointing forward suggests.</p>
 <p>At the two ends of the sequence the variables expand to nothing. There are no
 conditionals in the template language, and for this it needs none — the
 bundled themes hide the empty links with one rule:</p>

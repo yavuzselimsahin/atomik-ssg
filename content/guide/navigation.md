@@ -48,12 +48,17 @@ as a page.
 Every entry carries `{{prev_url}}`, `{{prev_title}}`, `{{next_url}}` and
 `{{next_title}}`.
 
-On a **page** these follow the sidebar from top to bottom — the reading order.
-A section leads into its first child, and the last child of a section leads
-into the next section. Reorder the sidebar and they reorder with it.
+They are **positional**, in both cases: `prev` is the entry above the current
+one in the list a reader was just looking at, `next` is the entry below it.
 
-On a **post** they follow the dates instead: `prev` is the older post, `next`
-is the newer one.
+On a **page** that list is the sidebar. A section leads into its first child,
+and the last child of a section leads into the next section. Reorder the
+sidebar and they reorder with it.
+
+On a **post** it is the index listing. Since the index runs newest first,
+`next` is the older post — the one further down the page the reader clicked
+from. Wiring these to the calendar instead would make "next" point back up
+the list, which is the opposite of what an arrow pointing forward suggests.
 
 At the two ends of the sequence the variables expand to nothing. There are no
 conditionals in the template language, and for this it needs none — the
