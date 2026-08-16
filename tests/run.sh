@@ -167,13 +167,24 @@ group "Prev/next navigation"
 N=public/posts/middle/index.html
 grep -q 'class="prev" href="/posts/[a-z0-9-]*/"' "$N" && ok "prev link present"  || bad "prev link missing"
 grep -q 'class="next" href="/posts/[a-z0-9-]*/"' "$N" && ok "next link present"  || bad "next link missing"
-# newest post has no newer neighbour, oldest has no older one
-grep -q 'class="next" href=""' public/posts/newest/index.html && ok "newest has empty next" || bad "newest has a next link"
-grep -q 'class="prev" href=""' public/posts/oldest/index.html && ok "oldest has empty prev" || bad "oldest has a prev link"
+# prev/next follow the index listing, not the calendar: the first entry in
+# the list has nothing above it, the last has nothing below it
+grep -q 'class="prev" href=""' public/posts/newest/index.html && ok "first listed post has empty prev" || bad "first listed post has a prev link"
+grep -q 'class="next" href=""' public/posts/oldest/index.html && ok "last listed post has empty next" || bad "last listed post has a next link"
 grep -q 'a:empty' public/style.css && ok "empty nav links hidden by CSS" || bad "no :empty rule in theme CSS"
-# the neighbour of the newest post must be the second-newest
-grep -o 'class="prev" href="[^"]*"' public/posts/newest/index.html | grep -q 'esc\|middle\|bulk\|derived\|escaped' \
-    && ok "prev points at an older post" || bad "prev target wrong"
+# walking "next" from the top must reproduce the order of the index itself
+python3 - <<'EOF' && ok "next walks the index order downwards" || bad "next walks against the index"
+import re, sys, os
+idx = re.findall(r'href="(/posts/[^"]*)"', open('public/index.html').read())
+walk, cur = [], idx[0]
+while cur and cur not in walk:
+    walk.append(cur)
+    f = 'public' + cur + 'index.html'
+    if not os.path.exists(f): break
+    m = re.search(r'class="next" href="([^"]*)"', open(f).read())
+    cur = m.group(1) if m and m.group(1) else None
+sys.exit(0 if walk == idx else 1)
+EOF
 
 group "Slug transliteration"
 "$BIN" new "Merhaba Dünya Işık Çöğüş" >/dev/null 2>&1

@@ -221,9 +221,12 @@ void cmd_build(void) {
     int count = 0;
     for (int i = 0; i < list.count; i++) {
         const Post *p = &list.posts[i];
-        /* Sorted newest first, so the older neighbour is the next element. */
-        const Post *prev = (i + 1 < list.count) ? &list.posts[i + 1] : NULL;
-        const Post *next = (i > 0)              ? &list.posts[i - 1] : NULL;
+        /* Positional, exactly as pages are: prev is the entry above this one
+           in the index listing, next is the one below. Wiring these to the
+           calendar instead would point "next" back up the page a reader just
+           came down, which is the opposite of what the arrows suggest. */
+        const Post *prev = (i > 0)              ? &list.posts[i - 1] : NULL;
+        const Post *next = (i + 1 < list.count) ? &list.posts[i + 1] : NULL;
 
         if (render_entry(post_tmpl, p, prev, next, g_output_dir, "posts") != 0) continue;
         if (append_item(&items, p) != 0) {

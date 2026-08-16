@@ -149,9 +149,11 @@ carries the whole hierarchy as a nested `<ul>`, which suits a sidebar:
 A section with an `index.md` becomes a link; one without becomes a heading, so
 you can group pages without inventing a landing page for the group.
 
-On a page, `{{prev_*}}` and `{{next_*}}` follow that sidebar top to bottom
-rather than a calendar — "Next: Configuration" means the next thing to read.
-Posts keep their chronological neighbours.
+`{{prev_*}}` and `{{next_*}}` follow that sidebar top to bottom — "Next:
+Configuration" means the next thing to read. Posts work the same way against
+the index listing: `next` is the entry below the current one, which on a
+newest-first index means the older post. The arrows always agree with the
+direction the list runs.
 
 Set `edit_url` to offer an edit link on every page:
 
